@@ -1,3 +1,5 @@
+"use client"
+
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
@@ -26,11 +28,11 @@ export default function SurveyDetails() {
    ]
  };
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
       {/* Title and Description */}
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">{survey.title}</h1>
-        <div className="prose max-w-none text-gray-700">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">{survey.title}</h1>
+        <div className="prose max-w-none text-gray-700 dark:text-gray-400">
           <ReactMarkdown>{survey.description}</ReactMarkdown>
         </div>
       </header>
@@ -40,22 +42,22 @@ export default function SurveyDetails() {
         {survey.questions.map((q) => (
           <div
             key={q.id}
-            className="p-4 bg-white rounded-2xl shadow hover:shadow-md transition"
+            className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-md transition"
           >
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3 dark:text-white">
               {q.text}
             </h2>
 
             {/* Open Question */}
             {q.type === "open" && (
-              <p className="text-gray-500 italic">Open question — no stats available.</p>
+              <p className="dark:text-gray-300 text-gray-500 italic">Open question — no stats available.</p>
             )}
 
             {/* Multiple Choice / Binary */}
             {(q.type === "multiple" || q.type === "binary") && (
               <ul className="space-y-1">
                 {q.options.map((opt, idx) => (
-                  <li key={idx} className="flex justify-between text-gray-700">
+                  <li key={idx} className="flex justify-between text-gray-700 dark:text-gray-300">
                     <span>{opt.label}</span>
                     <span className="font-medium">{opt.count}</span>
                   </li>

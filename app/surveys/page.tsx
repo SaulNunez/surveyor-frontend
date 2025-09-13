@@ -14,10 +14,10 @@ export default function Dashboard() {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
       {/* Header */}
       <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-800">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
           Good morning {userName}
         </h1>
         <Link
@@ -34,13 +34,13 @@ export default function Dashboard() {
           surveys.map((survey) => (
             <div
               key={survey.id}
-              className="p-4 bg-white rounded-2xl shadow hover:shadow-md transition flex items-center justify-between"
+              className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-md transition flex items-center justify-between"
             >
               <div>
-                <h2 className="text-xl font-semibold text-gray-700">
+                <h2 className="text-xl font-semibold text-gray-700 dark:text-white">
                   {survey.name}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Created on: {new Date(survey.createdAt).toLocaleDateString()}
                 </p>
               </div>

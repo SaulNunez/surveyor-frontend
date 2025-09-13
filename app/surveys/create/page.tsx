@@ -77,15 +77,15 @@ export default function SurveyCreate() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">Create Survey</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">Create Survey</h1>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Survey Title"
-          className="w-full p-2 border rounded-lg mb-4"
+          className="w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
         />
 
         {/* Tabs for Description */}
@@ -117,7 +117,7 @@ export default function SurveyCreate() {
             />
           )}
           {descTab === "preview" && description && (
-            <div className="p-4 bg-white rounded-2xl shadow prose max-w-none text-gray-700">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow prose max-w-none text-gray-700 dark:text-gray-400">
               <ReactMarkdown>{description}</ReactMarkdown>
             </div>
           )}
@@ -140,7 +140,7 @@ export default function SurveyCreate() {
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
-                      className="p-6 bg-white rounded-2xl shadow relative"
+                      className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow relative"
                     >
                       <div className="absolute top-3 right-3 flex gap-2">
                         <button
@@ -171,7 +171,7 @@ export default function SurveyCreate() {
                           value={q.text}
                           onChange={(e) => updateQuestion(q.id, "text", e.target.value)}
                           placeholder="Question Title"
-                          className="w-full p-2 border rounded-lg mb-3"
+                          className="w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                         />
                       </div>
 
@@ -185,7 +185,7 @@ export default function SurveyCreate() {
                               value={opt.label}
                               onChange={(e) => updateOption(q.id, idx, e.target.value)}
                               placeholder={`Option ${idx + 1}`}
-                              className="w-full p-2 border rounded-lg mb-2"
+                              className="w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                             />
                           ))}
                           <button
@@ -205,14 +205,14 @@ export default function SurveyCreate() {
                             value={q.negativeLabel}
                             onChange={(e) => updateQuestion(q.id, "negativeLabel", e.target.value)}
                             placeholder="Negative label (1)"
-                            className="flex-1 p-2 border rounded-lg"
+                            className="flex-1 w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                           />
                           <input
                             type="text"
                             value={q.positiveLabel}
                             onChange={(e) => updateQuestion(q.id, "positiveLabel", e.target.value)}
                             placeholder="Positive label (5)"
-                            className="flex-1 p-2 border rounded-lg"
+                            className="flex-1 p-2 border rounded-lg w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                           />
                         </div>
                       )}
@@ -225,14 +225,14 @@ export default function SurveyCreate() {
                             value={q.negativeLabel}
                             onChange={(e) => updateQuestion(q.id, "negativeLabel", e.target.value)}
                             placeholder="Negative label"
-                            className="flex-1 p-2 border rounded-lg"
+                            className="flex-1 p-2 border rounded-lg w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                           />
                           <input
                             type="text"
                             value={q.positiveLabel}
                             onChange={(e) => updateQuestion(q.id, "positiveLabel", e.target.value)}
                             placeholder="Positive label"
-                            className="flex-1 p-2 border rounded-lg"
+                            className="flex-1 p-2 border rounded-lg w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                           />
                         </div>
                       )}
