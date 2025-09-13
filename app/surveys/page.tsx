@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link";
 import { useState } from "react";
 
 // Example usage:
@@ -12,19 +13,6 @@ export default function Dashboard() {
     { id: 2, name: "Product Satisfaction", createdAt: "2025-09-05" },
   ]);
 
-  const handleCreateSurvey = () => {
-    const newSurvey = {
-      id: surveys.length + 1,
-      name: `New Survey ${surveys.length + 1}`,
-      createdAt: new Date().toISOString(),
-    };
-    setSurveys([...surveys, newSurvey]);
-  };
-
-  const handleViewSurvey = (surveyId) => {
-    alert(`Viewing survey with ID: ${surveyId}`);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
@@ -32,12 +20,12 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-800">
           Good morning {userName}
         </h1>
-        <button
-          onClick={handleCreateSurvey}
+        <Link
+          href={"/surveys/create"}
           className="px-4 py-2 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 transition"
         >
           + Create Survey
-        </button>
+        </Link>
       </header>
 
       {/* Survey List */}
@@ -56,12 +44,12 @@ export default function Dashboard() {
                   Created on: {new Date(survey.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              <button
-                onClick={() => handleViewSurvey(survey.id)}
+              <Link
+                href={`/surveys/${survey.id}`}
                 className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
               >
                 View Survey
-              </button>
+              </Link>
             </div>
           ))
         ) : (
