@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Trash2, ArrowUp, ArrowDown } from "lucide-react";
