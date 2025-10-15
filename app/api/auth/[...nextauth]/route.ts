@@ -1,32 +1,41 @@
+import { getUserByEmail } from "@/libs/services/auth/userService";
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials";
+const bcrypt = require("bcryptjs");
 
 const handler = NextAuth({
     providers: [
         Credentials({
-            // You can specify which fields should be submitted, by adding keys to the `credentials` object.
-            // e.g. domain, username, password, 2FA token, etc.
             credentials: {
-                email: {},
-                password: {},
+                email: {
+                    type: "email",
+                    label: "Email",
+                    placeholder: "johndoe@gmail.com",
+                },
+                password: {
+                    type: "password",
+                    label: "Password",
+                    placeholder: "*****",
+                },
             },
             authorize: async (credentials) => {
-                let user = null
-
-                // logic to salt and hash password
-                const pwHash = saltAndHashPassword(credentials.password)
-
-                // logic to verify if the user exists
-                user = await getUserFromDb(credentials.email, pwHash)
-
+                if(!credentials) {
+                    throw new Error('Invalid credentials');
+                }
+                const user = await getUserByEmail(credentials.email);
                 if (!user) {
-                    // No user found, so this is their first attempt to login
-                    // Optionally, this is also the place you could do a user registration
-                    throw new Error("Invalid credentials.")
+                    throw new Error('Invalid credentials');
                 }
 
-                // return user object with their profile data
-                return user
+                const isMatch = bcrypt.compare(credentials.password, user.password);
+                if (!isMatch) {
+                    throw new Error('Invalid credentials');
+                }
+
+                return {
+                    id: user.id,
+                    email: user.email
+                };
             },
         }),
     ]
