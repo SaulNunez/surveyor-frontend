@@ -4,22 +4,44 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { QuestionDao } from "@/libs/models/frontend/question";
 
 export default function SurveyCreate() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [descTab, setDescTab] = useState("edit");
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<QuestionDao[]>([]);
 
-  const addQuestion = (type) => {
-    const newQuestion = { id: Date.now().toString(), type, text: "", options: [] };
-    if (type === "likert") {
-      newQuestion.negativeLabel = "";
-      newQuestion.positiveLabel = "";
+  const addQuestion = (type: string) => {
+    let newQuestion: QuestionDao;
+    if (type === "likert-scale") {
+      newQuestion = {
+        title: "",
+        questionType: 'likert-scale',
+        negativeLabel: "",
+        positiveLabel: ""
+      };
     }
-    if (type === "binary") {
-      newQuestion.negativeLabel = "";
-      newQuestion.positiveLabel = "";
+    else if (type === "binary-choice") {
+      newQuestion = {
+        title: "",
+        questionType: 'likert-scale',
+        negativeLabel: "",
+        positiveLabel: ""
+      };
+    }
+    else if (type === "multiple-choice") {
+      newQuestion = {
+        title: "",
+        questionType: 'multiple-choice',
+        options: []
+      };
+    } 
+    else {
+      newQuestion = {
+        title: "",
+        questionType: 'open-ended',
+      };
     }
     setQuestions([...questions, newQuestion]);
   };
@@ -45,17 +67,17 @@ export default function SurveyCreate() {
       questions.map((q) =>
         q.id === qId
           ? {
-              ...q,
-              options: q.options.map((opt, i) =>
-                i === index ? { ...opt, label: value } : opt
-              ),
-            }
+            ...q,
+            options: q.options.map((opt, i) =>
+              i === index ? { ...opt, label: value } : opt
+            ),
+          }
           : q
       )
     );
   };
 
-  const removeQuestion = (id:string) => {
+  const removeQuestion = (id: string) => {
     setQuestions(questions.filter((q) => q.id !== id));
   };
 
@@ -93,17 +115,15 @@ export default function SurveyCreate() {
           <div className="flex border-b mb-2">
             <button
               onClick={() => setDescTab("edit")}
-              className={`px-4 py-2 ${
-                descTab === "edit" ? "border-b-2 border-blue-600" : ""
-              }`}
+              className={`px-4 py-2 ${descTab === "edit" ? "border-b-2 border-blue-600" : ""
+                }`}
             >
               Edit
             </button>
             <button
               onClick={() => setDescTab("preview")}
-              className={`px-4 py-2 ${
-                descTab === "preview" ? "border-b-2 border-blue-600" : ""
-              }`}
+              className={`px-4 py-2 ${descTab === "preview" ? "border-b-2 border-blue-600" : ""
+                }`}
             >
               Preview
             </button>
@@ -168,7 +188,7 @@ export default function SurveyCreate() {
                       <div className="pt-8">
                         <input
                           type="text"
-                          value={q.text}
+                          value={q.title}
                           onChange={(e) => updateQuestion(q.id, "text", e.target.value)}
                           placeholder="Question Title"
                           className="w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
@@ -176,13 +196,13 @@ export default function SurveyCreate() {
                       </div>
 
                       {/* Multiple Choice */}
-                      {q.type === "multiple" && (
+                      {q.questionType === "multiple-choice" && (
                         <div>
                           {q.options.map((opt, idx) => (
                             <input
                               key={idx}
                               type="text"
-                              value={opt.label}
+                              value={opt}
                               onChange={(e) => updateOption(q.id, idx, e.target.value)}
                               placeholder={`Option ${idx + 1}`}
                               className="w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
@@ -198,7 +218,7 @@ export default function SurveyCreate() {
                       )}
 
                       {/* Likert */}
-                      {q.type === "likert" && (
+                      {q.questionType === "likert-scale" && (
                         <div className="flex gap-4">
                           <input
                             type="text"
@@ -218,7 +238,7 @@ export default function SurveyCreate() {
                       )}
 
                       {/* Binary */}
-                      {q.type === "binary" && (
+                      {q.questionType === "binary-choice" && (
                         <div className="flex gap-4">
                           <input
                             type="text"
@@ -251,25 +271,25 @@ export default function SurveyCreate() {
       {/* Add Question Button */}
       <div className="space-x-2">
         <button
-          onClick={() => addQuestion("open")}
+          onClick={() => addQuestion("open-ended")}
           className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
         >
           + Add Open Question
         </button>
         <button
-          onClick={() => addQuestion("multiple")}
+          onClick={() => addQuestion("multiple-choice")}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           + Add Multiple Choice
         </button>
         <button
-          onClick={() => addQuestion("binary")}
+          onClick={() => addQuestion("binary-choice")}
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
         >
           + Add Binary Question
         </button>
         <button
-          onClick={() => addQuestion("likert")}
+          onClick={() => addQuestion("likert-scale")}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
         >
           + Add Likert Scale
