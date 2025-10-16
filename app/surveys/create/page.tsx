@@ -5,21 +5,57 @@ import ReactMarkdown from "react-markdown";
 import { Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QuestionDao } from "@/libs/models/frontend/question";
+import { v7 as uuidv7 } from 'uuid';
+import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/router";
+import { SurveyInput } from "@/libs/models/frontend/survey";
+
+type QuestionDaoInScreen = QuestionDao & { id: string };
 
 export default function SurveyCreate() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [descTab, setDescTab] = useState("edit");
-  const [questions, setQuestions] = useState<QuestionDao[]>([]);
+  const [questions, setQuestions] = useState<QuestionDaoInScreen[]>([]);
+
+  const postSurvey = (survey: SurveyInput) => {
+    return fetch('/api/surveys', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(survey)
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error('HTTP error ' + response.status);
+      }
+      return response.json();
+    });
+  };
+
+  const surveyMutation = useMutation({
+    mutationFn: postSurvey,
+    mutationKey: ['addSurvey']
+  });
+
+  const submitSurvey = async () => {
+    surveyMutation.mutate({ title, description, questions }, {
+      onSuccess: (data, variables, onMutateResult, context) => {
+        router.push(`/surveys/${data?.id}`);
+      },
+    })
+  };
 
   const addQuestion = (type: string) => {
-    let newQuestion: QuestionDao;
+    let newQuestion: QuestionDaoInScreen;
     if (type === "likert-scale") {
       newQuestion = {
         title: "",
         questionType: 'likert-scale',
         negativeLabel: "",
-        positiveLabel: ""
+        positiveLabel: "",
+        id: uuidv7()
       };
     }
     else if (type === "binary-choice") {
@@ -27,20 +63,23 @@ export default function SurveyCreate() {
         title: "",
         questionType: 'likert-scale',
         negativeLabel: "",
-        positiveLabel: ""
+        positiveLabel: "",
+        id: uuidv7()
       };
     }
     else if (type === "multiple-choice") {
       newQuestion = {
         title: "",
         questionType: 'multiple-choice',
-        options: []
+        options: [],
+        id: uuidv7()
       };
-    } 
+    }
     else {
       newQuestion = {
         title: "",
         questionType: 'open-ended',
+        id: uuidv7()
       };
     }
     setQuestions([...questions, newQuestion]);
@@ -52,24 +91,24 @@ export default function SurveyCreate() {
     );
   };
 
-  const addOption = (id) => {
+  const addOption = (questionId: string) => {
     setQuestions(
       questions.map((q) =>
-        q.id === id
-          ? { ...q, options: [...q.options, { label: "" }] }
+        q.id === questionId && q.questionType === "multiple-choice"
+          ? { ...q, options: [...q.options,] }
           : q
       )
     );
   };
 
-  const updateOption = (qId, index, value) => {
+  const updateOption = (qId: string, index: number, updatedValue: string) => {
     setQuestions(
       questions.map((q) =>
-        q.id === qId
+        q.id === qId && q.questionType === "multiple-choice"
           ? {
             ...q,
-            options: q.options.map((opt, i) =>
-              i === index ? { ...opt, label: value } : opt
+            options: q.options.map((originalOption, i) =>
+              i === index ? updatedValue : originalOption
             ),
           }
           : q
@@ -189,7 +228,7 @@ export default function SurveyCreate() {
                         <input
                           type="text"
                           value={q.title}
-                          onChange={(e) => updateQuestion(q.id, "text", e.target.value)}
+                          onChange={(e) => updateQuestion(q.id, "title", e.target.value)}
                           placeholder="Question Title"
                           className="w-full p-2 border rounded-lg mb-4 block mb-2 text-md font-medium text-gray-900 dark:text-white"
                         />
@@ -293,6 +332,14 @@ export default function SurveyCreate() {
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
         >
           + Add Likert Scale
+        </button>
+      </div>
+      <div>
+        <button
+          onClick={() => submitSurvey()}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+        >
+          Submit survey
         </button>
       </div>
     </div>
