@@ -1,10 +1,33 @@
+"use client"
+
+import { Loading } from "@/components/common/Loading";
+import { ServerError } from "@/components/common/ServerError";
+import { SurveyDao } from "@/libs/models/frontend/survey";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/router";
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-export default function SurveyAnswer({ survey }) {
-  const [responses, setResponses] = useState({});
+export default function SurveyAnswer() {
+  const router = useRouter();
+  const { surveyId } = router.query;
 
-  const handleResponse = (id, value) => {
+  const querySurvey = () =>
+      fetch(`api/surveys/${surveyId}`).then(response => {
+      if (!response.ok) {
+        throw new Error('HTTP error ' + response.status);
+      }
+      return response.json();
+    });
+
+  const { isPending, error, data: survey } = useQuery<SurveyDao>({
+    queryKey: ['survey', surveyId],
+    queryFn: querySurvey
+  });
+
+  const [responses, setResponses] = useState<Record<string,any>>({});
+
+  const handleResponse = (id: string, value: any) => {
     setResponses({ ...responses, [id]: value });
   };
 
@@ -13,11 +36,14 @@ export default function SurveyAnswer({ survey }) {
     alert("Survey submitted! Check console for responses.");
   };
 
+  if(isPending) <Loading />
+  if(error) <ServerError />
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 text-gray-900 dark:text-gray-100">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{survey.title}</h1>
-        {survey.description && (
+        <h1 className="text-3xl font-bold mb-2">{survey?.title}</h1>
+        {survey?.description && (
           <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
             <ReactMarkdown>{survey.description}</ReactMarkdown>
           </div>
@@ -25,15 +51,15 @@ export default function SurveyAnswer({ survey }) {
       </header>
 
       <div className="grid gap-6 mb-6">
-        {survey.questions.map((q) => (
+        {survey?.questions.map((q) => (
           <div
             key={q.id}
             className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow"
           >
-            <h2 className="text-lg font-semibold mb-3">{q.text}</h2>
+            <h2 className="text-lg font-semibold mb-3">{q.title}</h2>
 
             {/* Open Question */}
-            {q.type === "open" && (
+            {q.questionType === "open-ended" && (
               <textarea
                 className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
                 placeholder="Your answer..."
@@ -43,7 +69,7 @@ export default function SurveyAnswer({ survey }) {
             )}
 
             {/* Multiple Choice */}
-            {q.type === "multiple" && (
+            {q.questionType === "multiple-choice" && (
               <div className="space-y-2">
                 {q.options.map((opt, idx) => (
                   <label key={idx} className="flex items-center gap-2">
@@ -62,7 +88,7 @@ export default function SurveyAnswer({ survey }) {
             )}
 
             {/* Binary Choice */}
-            {q.type === "binary" && (
+            {q.questionType === "binary-choice" && (
               <div className="flex gap-6">
                 <label className="flex items-center gap-2">
                   <input
@@ -88,7 +114,7 @@ export default function SurveyAnswer({ survey }) {
             )}
 
             {/* Likert Scale */}
-            {q.type === "likert" && (
+            {q.questionType === "likert-scale" && (
               <div>
                 <div className="flex justify-between mb-2 text-sm text-gray-600 dark:text-gray-400">
                   <span>{q.negativeLabel}</span>

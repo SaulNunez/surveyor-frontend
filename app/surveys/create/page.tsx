@@ -4,13 +4,13 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { QuestionDao } from "@/libs/models/frontend/question";
+import { QuestionInput } from "@/libs/models/frontend/question";
 import { v7 as uuidv7 } from 'uuid';
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/router";
 import { SurveyInput } from "@/libs/models/frontend/survey";
 
-type QuestionDaoInScreen = QuestionDao & { id: string };
+type QuestionDaoInScreen = QuestionInput & { id: string };
 
 export default function SurveyCreate() {
   const router = useRouter();

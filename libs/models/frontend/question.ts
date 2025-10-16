@@ -24,4 +24,5 @@ export interface OpenEndedQuestionDao {
     title: string;
 }
 
-export type QuestionDao = MultipleChoiceQuestionDao | BinaryChoiceQuestionDao | LikertScaleQuestionDao | OpenEndedQuestionDao;
+export type QuestionInput = MultipleChoiceQuestionDao | BinaryChoiceQuestionDao | LikertScaleQuestionDao | OpenEndedQuestionDao;
+export type QuestionDao = (MultipleChoiceQuestionDao | BinaryChoiceQuestionDao | LikertScaleQuestionDao | OpenEndedQuestionDao) & {id: string};

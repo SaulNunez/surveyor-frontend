@@ -1,8 +1,8 @@
-import { QuestionDao } from "../models/frontend/question";
+import { QuestionDao, QuestionInput } from "../models/frontend/question";
 import { BinaryChoiceQuestion, LikertScaleQuestion, MultipleChoiceQuestion, OpenEndedQuestion, QuestionType } from "../models/questionSchema";
 import { Survey, SurveyModel } from "../models/surveySchema";
 
-export async function createQuestion(surveyId: string, questionData: QuestionDao) {
+export async function createQuestion(surveyId: string, questionData: QuestionInput) {
     const survey = await SurveyModel.findById(surveyId).exec();
     if (!survey) {
         throw new Error('Survey not found');
@@ -51,6 +51,7 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
     return survey.questions.map(question => {
         if (question instanceof BinaryChoiceQuestion) {
             return {
+                id: question.id,
                 questionType: 'binary-choice',
                 positiveLabel: question.positiveLabel,
                 negativeLabel: question.negativeLabel,
@@ -59,6 +60,7 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
         }
         else if (question instanceof LikertScaleQuestion) {
             return {
+                id: question.id,
                 questionType: 'likert-scale',
                 positiveLabel: question.positiveLabel,
                 negativeLabel: question.negativeLabel,
@@ -67,6 +69,7 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
         }
         else if (question instanceof MultipleChoiceQuestion) {
             return {
+                id: question.id,
                 questionType: 'multiple-choice',
                 title: question.text,
                 options: question.options
@@ -74,6 +77,7 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
         }
         else if (question instanceof OpenEndedQuestion) {
             return {
+                id: question.id,
                 questionType: 'open-ended',
                 title: question.text
             };
@@ -83,7 +87,7 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
     });
 }
 
-export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionDao) {
+export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionInput) {
     const survey = await SurveyModel.findById(surveyId).exec();
     if (!survey) {
         throw new Error('Survey not found');
