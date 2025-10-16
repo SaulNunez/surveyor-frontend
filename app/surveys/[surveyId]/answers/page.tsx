@@ -4,18 +4,6 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
-// Example survey data structure
-// const survey = {
-//   title: "Customer Feedback",
-//   description: "## Thank you for your feedback!\nWe appreciate your time.",
-//   questions: [
-//     { id: 1, type: "open", text: "What do you think about our service?" },
-//     { id: 2, type: "multiple", text: "Which features do you use?", options: [{ label: "Feature A", count: 10 }, { label: "Feature B", count: 5 }] },
-//     { id: 3, type: "binary", text: "Would you recommend us?", options: [{ label: "Yes", count: 8 }, { label: "No", count: 2 }] },
-//     { id: 4, type: "likert", text: "Rate your satisfaction (1-5)", responses: { 1: 1, 2: 3, 3: 5, 4: 8, 5: 4 } }
-//   ]
-// };
-
 export default function SurveyDetails() {
   const survey = {
    title: "Customer Feedback",
