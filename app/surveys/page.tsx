@@ -1,24 +1,21 @@
-"use client"
-
+import { getAllSurveysForUser } from "@/libs/services/surveyService";
+import { getServerSession } from "next-auth";
 import Link from "next/link";
-import { useState } from "react";
+import { authOptions } from "../api/auth/[...nextauth]/route";
 
 // Example usage:
 // <Dashboard />
 
-export default function Dashboard() {
-  const [userName, setUserName] = useState("Joe Doe");
-  const [surveys, setSurveys] = useState([
-    { id: 1, name: "Customer Feedback", createdAt: "2025-09-01" },
-    { id: 2, name: "Product Satisfaction", createdAt: "2025-09-05" },
-  ]);
+export default async function Dashboard() {
+  const session  = await getServerSession(authOptions);
+  const surveys = await getAllSurveysForUser(session?.user?.email);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
       {/* Header */}
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Good morning {userName}
+          Good morning {session?.user?.name}
         </h1>
         <Link
           href={"/surveys/create"}
@@ -38,7 +35,7 @@ export default function Dashboard() {
             >
               <div>
                 <h2 className="text-xl font-semibold text-gray-700 dark:text-white">
-                  {survey.name}
+                  {survey.title}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Created on: {new Date(survey.createdAt).toLocaleDateString()}
