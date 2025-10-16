@@ -1,14 +1,14 @@
 import { QuestionDao } from "../models/frontend/question";
-import { BinaryChoiceQuestion, LikertScaleQuestion, MultipleChoiceQuestion, OpenEndedQuestion } from "../models/questionSchema";
+import { BinaryChoiceQuestion, LikertScaleQuestion, MultipleChoiceQuestion, OpenEndedQuestion, QuestionType } from "../models/questionSchema";
 import { Survey, SurveyModel } from "../models/surveySchema";
 
 export async function createQuestion(surveyId: string, questionData: QuestionDao) {
     const survey = await SurveyModel.findById(surveyId).exec();
-    if(!survey) {
+    if (!survey) {
         throw new Error('Survey not found');
     }
 
-    switch(questionData.questionType) {
+    switch (questionData.questionType) {
         case 'multiple-choice':
             survey.questions.push({
                 text: questionData.title,
@@ -42,18 +42,59 @@ export async function createQuestion(surveyId: string, questionData: QuestionDao
     await survey.save();
 }
 
+export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionDao[]> {
+    const survey = await SurveyModel.findById(surveyId).exec();
+    if (!survey) {
+        throw new Error('Survey not found');
+    }
+
+    return survey.questions.map(question => {
+        if (question instanceof BinaryChoiceQuestion) {
+            return {
+                questionType: 'binary-choice',
+                positiveLabel: question.positiveLabel,
+                negativeLabel: question.negativeLabel,
+                title: question.text
+            };
+        }
+        else if (question instanceof LikertScaleQuestion) {
+            return {
+                questionType: 'likert-scale',
+                positiveLabel: question.positiveLabel,
+                negativeLabel: question.negativeLabel,
+                title: question.text
+            };
+        }
+        else if (question instanceof MultipleChoiceQuestion) {
+            return {
+                questionType: 'multiple-choice',
+                title: question.text,
+                options: question.options
+            };
+        }
+        else if (question instanceof OpenEndedQuestion) {
+            return {
+                questionType: 'open-ended',
+                title: question.text
+            };
+        } else {
+            throw new Error("Unsupported question type");
+        }
+    });
+}
+
 export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionDao) {
     const survey = await SurveyModel.findById(surveyId).exec();
-    if(!survey) {
+    if (!survey) {
         throw new Error('Survey not found');
     }
 
     const question = survey.questions.id(questionId);
-    if(!question) {
+    if (!question) {
         throw new Error('Question not found');
     }
 
-    switch(questionData.questionType) {
+    switch (questionData.questionType) {
         case 'multiple-choice':
             question.updateOne({
                 text: questionData.title,
@@ -88,12 +129,12 @@ export async function editQuestion(surveyId: string, questionId: string, questio
 
 export async function deleteQuestion(surveyId: string, questionId: string) {
     const survey = await SurveyModel.findById(surveyId).exec();
-    if(!survey) {
+    if (!survey) {
         throw new Error('Survey not found');
     }
 
     const question = survey.questions.pull({ _id: questionId });
-    if(!question) {
+    if (!question) {
         throw new Error('Question not found');
     }
 
