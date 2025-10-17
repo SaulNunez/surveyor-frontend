@@ -1,8 +1,10 @@
+import dbConnect from "@/app/lib/data";
 import { getQuestionsForSurvey } from "@/libs/services/questionService";
 import { getSurvey } from "@/libs/services/surveyService";
 import { useRouter } from "next/router";
 
 export async function GET(request: Request) {
+    await dbConnect();
     const router = useRouter();
     try {
         const { surveyId } = router.query;

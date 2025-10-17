@@ -1,3 +1,4 @@
+import dbConnect from "@/app/lib/data";
 import { getUserByEmail } from "@/libs/services/auth/userService";
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials";
@@ -22,6 +23,7 @@ export const authOptions = {
                 if(!credentials) {
                     throw new Error('Invalid credentials');
                 }
+                await dbConnect();
                 const user = await getUserByEmail(credentials.email);
                 if (!user) {
                     throw new Error('Invalid credentials');

@@ -2,11 +2,13 @@ import { getAllSurveysForUser } from "@/libs/services/surveyService";
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { authOptions } from "../api/auth/[...nextauth]/route";
+import dbConnect from "../lib/data";
 
 // Example usage:
 // <Dashboard />
 
 export default async function Dashboard() {
+  await dbConnect();
   const session  = await getServerSession(authOptions);
   const surveys = await getAllSurveysForUser(session?.user?.email);
 
