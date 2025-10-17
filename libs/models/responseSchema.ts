@@ -1,6 +1,7 @@
 import * as typegoose from "@typegoose/typegoose";
 import { Question, QuestionType } from "./questionSchema";
 import { Attempt } from "./attemptSchema";
+import { v4 as uuidv4 } from 'uuid';
 
 @typegoose.modelOptions({
   schemaOptions: {
@@ -8,7 +9,7 @@ import { Attempt } from "./attemptSchema";
   },
 })
 export class Response {
-    @typegoose.prop()
+    @typegoose.prop({ required: true, default: () => uuidv4() })
     public _id!: string;
 
     @typegoose.prop({ ref: () => Question, required: true, type: () => String })

@@ -1,9 +1,10 @@
 import * as typegoose from "@typegoose/typegoose";
 import { Survey } from "./surveySchema";
 import { BinaryChoiceResponse, LikertScaleResponse, MultipleChoiceResponse, OpenEndedResponse, Response } from "./responseSchema";
+import { v4 as uuidv4 } from 'uuid';
 
 export class Attempt {
-  @typegoose.prop()
+  @typegoose.prop({ required: true, default: () => uuidv4() })
   public _id!: string;
 
   @typegoose.prop({ required: true })

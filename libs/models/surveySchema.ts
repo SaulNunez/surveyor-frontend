@@ -1,9 +1,10 @@
 import { DocumentType, getModelForClass, prop } from "@typegoose/typegoose";
 import mongoose from "mongoose";
 import { BinaryChoiceQuestion, LikertScaleQuestion, MultipleChoiceQuestion, OpenEndedQuestion, Question } from "./questionSchema";
+import { v4 as uuidv4 } from 'uuid';
 
 export class Survey {
-  @prop()
+  @prop({ required: true, default: () => uuidv4() })
   public _id!: string;
 
   @prop({ required: true })

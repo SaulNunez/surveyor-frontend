@@ -1,4 +1,5 @@
 import { getDiscriminatorModelForClass, getModelForClass, modelOptions, prop } from "@typegoose/typegoose";
+import { v4 as uuidv4 } from 'uuid';
 
 export enum QuestionType {
     OPEN_ENDED = 'open-ended',
@@ -13,7 +14,7 @@ export enum QuestionType {
   },
 })
 export class Question {
-    @prop()
+    @prop({ required: true, default: () => uuidv4() })
     public _id!: string;
 
     @prop({ required: true })
