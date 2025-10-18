@@ -1,0 +1,22 @@
+services:
+  surveyor:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+#.    TODO: Create a secondary user account without superuser priviledges
+      MONGO_CONNECTION_STRING: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:27017/
+    depends_on:
+      - db
+  db:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+#      MONGO_INITDB_ROOT_PASSWORD_FILE:  # To use if you want to use docker secrets
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
