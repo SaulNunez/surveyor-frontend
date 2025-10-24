@@ -1,13 +1,11 @@
 import dbConnect from "@/app/lib/data";
 import { getQuestionsForSurvey } from "@/libs/services/questionService";
 import { getSurvey } from "@/libs/services/surveyService";
-import { useRouter } from "next/router";
 
-export async function GET(request: Request) {
+export async function GET(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     await dbConnect();
-    const router = useRouter();
     try {
-        const { surveyId } = router.query;
+        const { surveyId } = await params;
         const survey = await getSurvey(surveyId);
         const questionsForSurvey = await getQuestionsForSurvey(surveyId);
 

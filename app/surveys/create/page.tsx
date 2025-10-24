@@ -7,7 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { QuestionInput } from "@/libs/models/frontend/question";
 import { v7 as uuidv7 } from 'uuid';
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { SurveyInput } from "@/libs/models/frontend/survey";
 
 type QuestionDaoInScreen = QuestionInput & { id: string };

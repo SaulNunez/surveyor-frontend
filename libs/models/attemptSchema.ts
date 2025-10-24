@@ -28,4 +28,8 @@ export class Attempt {
   public responses?: Response[];
 }
 
+const MyModelName = typegoose.getName(Attempt);
+if (process.env.NODE_ENV === 'development' && mongoose?.conn.modelNames().includes(MyModelName)) {
+  typegoose.deleteModel(MyModelName);
+}
 export const AttemptModel = typegoose.getModelForClass(Attempt);

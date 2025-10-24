@@ -1,5 +1,5 @@
 import { getModelForClass, pre, prop } from "@typegoose/typegoose";
-const bcrypt = require('bcryptjs');
+import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from 'uuid';
 
 @pre<User>('save', async function(next){

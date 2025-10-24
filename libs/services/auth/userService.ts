@@ -8,9 +8,9 @@ export async function createUser({ email, password }: UserInputDao) {
             password: password
         });
         await user.save();
-        return true;
     } catch (err) {
-        return false;
+       console.error(err);
+        throw err;
     }
 }
 

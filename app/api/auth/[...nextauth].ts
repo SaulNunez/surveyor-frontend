@@ -2,7 +2,7 @@ import dbConnect from "@/app/lib/data";
 import { getUserByEmail } from "@/libs/services/auth/userService";
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials";
-const bcrypt = require("bcryptjs");
+import bcrypt from "bcrypt";
 
 export const authOptions = {
     providers: [

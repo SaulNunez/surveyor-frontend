@@ -1,10 +1,11 @@
+"use client"
 import React, { useState } from "react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("Login with:", { email, password });
     alert("Logged in! Check console for credentials.");

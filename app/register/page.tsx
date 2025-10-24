@@ -1,18 +1,44 @@
+"use client"
+import { UserInputDao } from "@/libs/models/auth/dao/userCreationModel";
+import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import React, { FormHTMLAttributes, useState } from "react";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const router = useRouter();
 
-  const handleRegister = (e) => {
+    const postNewUser = (userRegistrationInfo: UserInputDao) => {
+    return fetch('/api/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userRegistrationInfo)
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error('HTTP error ' + response.status);
+      }
+      return response.json();
+    });
+  };
+
+  const surveyMutation = useMutation({
+    mutationFn: postNewUser,
+    mutationKey: ['regiserUser']
+  });
+
+  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
-    console.log("Register with:", { email, password });
-    alert("Registered! Check console for credentials.");
+    surveyMutation.mutate({email, password}, {
+      onSuccess: () => router.replace("auth/signin")
+    });
   };
 
   return (

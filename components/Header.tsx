@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from "react";
 import { Home, Menu } from "lucide-react";
 import { useSession } from "next-auth/react";

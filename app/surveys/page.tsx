@@ -1,7 +1,7 @@
 import { getAllSurveysForUser } from "@/libs/services/surveyService";
 import { getServerSession } from "next-auth";
 import Link from "next/link";
-import { authOptions } from "../api/auth/[...nextauth]/route";
+import { authOptions } from "../api/auth/[...nextauth]";
 import dbConnect from "../lib/data";
 
 // Example usage:
@@ -10,7 +10,11 @@ import dbConnect from "../lib/data";
 export default async function Dashboard() {
   await dbConnect();
   const session  = await getServerSession(authOptions);
-  const surveys = await getAllSurveysForUser(session?.user?.email);
+  if(!session?.user?.email)
+  {
+    return (<p>User not logged in.</p>);
+  }
+  const surveys = await getAllSurveysForUser(session.user.email);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">

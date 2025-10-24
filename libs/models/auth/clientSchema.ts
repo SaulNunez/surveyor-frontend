@@ -1,8 +1,8 @@
-import { getModelForClass, pre, prop, Ref } from "@typegoose/typegoose";
+import * as typegoose from "@typegoose/typegoose";
 import { User } from "./userSchema";
-const bcrypt = require('bcryptjs');
+import bcrypt from "bcrypt";
 
-@pre<Client>('save', async function(next){
+@typegoose.pre<Client>('save', async function(next){
 if (!this.isModified("clientSecret")) return next();
     try {
         const salt = await bcrypt.genSalt(10);
@@ -20,24 +20,24 @@ if (!this.isModified("clientSecret")) return next();
 })
 
 export class Client {
-    @prop({ type: () => String, required: true, unique: true })
+    @typegoose.prop({ type: () => String, required: true, unique: true })
     public _id!: string;
 
-    @prop({ type: () => String, required: true })
+    @typegoose.prop({ type: () => String, required: true })
     clientName!: string;
     
-    @prop({ type: () => String, required: true })
+    @typegoose.prop({ type: () => String, required: true })
     clientDescription!: string;
 
-    @prop({ type: () => String})
+    @typegoose.prop({ type: () => String})
     clientSecret!: string;
 
-    @prop({ type: () => [String], required: true, default: [] })
+    @typegoose.prop({ type: () => [String], required: true, default: [] })
     redirectUris!: string[];
     //grants!: string[];
 
-    @prop({ ref: () => User, required: true, type: () => String });
-    public user!: Ref<User, string>;
+    @typegoose.prop({ ref: () => User, required: true, type: () => String })
+    public user!: typegoose.Ref<User, string>;
 }
 
-export const ClientModel = getModelForClass(Client);
+export const ClientModel = typegoose.getModelForClass(Client);

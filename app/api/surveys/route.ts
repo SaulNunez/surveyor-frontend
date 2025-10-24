@@ -1,6 +1,6 @@
 import { createSurvey } from "@/libs/services/surveyService";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "../auth/[...nextauth]";
 import { SurveyInput } from "@/libs/models/frontend/survey";
 import dbConnect from "@/app/lib/data";
 
@@ -24,7 +24,15 @@ export async function POST(request: Request) {
         const title = body["title"];
         const description = body["description"];
 
-        const survey = await createSurvey(title, description, session?.user?.email);
+        if(!session?.user) {
+            return new Response("Unauthorized", { status: 401 })
+        }
+
+        if(!session.user.email) {
+            throw new Error("Email not defined!");
+        }
+
+        const survey = await createSurvey(title, description, session.user.email);
         
         const questions = body["questions"].map(async(question) => await createQuestion(survey.id, question));
         const result = Promise.all(questions);

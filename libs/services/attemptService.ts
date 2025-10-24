@@ -1,4 +1,4 @@
-import { Attempt, AttemptModel } from "../models/attemptSchema";
+import { AttemptModel } from "../models/attemptSchema";
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
 

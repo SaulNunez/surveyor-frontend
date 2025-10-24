@@ -44,7 +44,7 @@ export default function SurveyDetails() {
             {/* Multiple Choice / Binary */}
             {(q.type === "multiple" || q.type === "binary") && (
               <ul className="space-y-1">
-                {q.options.map((opt, idx) => (
+                {q.options!.map((opt, idx) => (
                   <li key={idx} className="flex justify-between text-gray-700 dark:text-gray-300">
                     <span>{opt.label}</span>
                     <span className="font-medium">{opt.count}</span>
@@ -54,7 +54,7 @@ export default function SurveyDetails() {
             )}
 
             {/* Likert Scale */}
-            {q.type === "likert" && (
+            {q.type === "likert" && q.responses && (
               <div className="h-64 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={Object.entries(q.responses).map(([key, value]) => ({ scale: key, count: value }))}>

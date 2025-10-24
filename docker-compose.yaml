@@ -6,6 +6,7 @@ services:
     environment:
 #.    TODO: Create a secondary user account without superuser priviledges
       MONGO_CONNECTION_STRING: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@db:27017/
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
     depends_on:
       - db
   db:
