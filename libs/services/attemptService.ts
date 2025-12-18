@@ -6,7 +6,6 @@ async function getLatestAttempt(surveyId: string, userId: string) {
     const latestAttempt = await AttemptModel
         .findOne({ survey: surveyId, user: userId }, 'survey startedAt completedAt')
         .sort({ startedAt: 'descending' }).exec();
-    if (!latestAttempt) throw new NotFoundError('No attempt found');
 
     return latestAttempt;
 }
@@ -63,7 +62,7 @@ export async function deleteExistingAttempt(attemptId: string, userId: string) {
     }
 
     if (existingAttempt.completedAt) {
-        throw new InvalidOperationError('Attempt not found');
+        throw new InvalidOperationError('Cannot delete completed attempt');
     }
 
     if (existingAttempt.user.toString() !== userId) {
@@ -83,12 +82,15 @@ export async function completeExistingAttempt(attemptId: string, userId: string)
     }
 
     if (existingAttempt?.completedAt) {
-        return new InvalidOperationError("Attempt already completed");
+        throw new InvalidOperationError("Attempt already completed");
     }
 
     if (existingAttempt.user.toString() !== userId) {
         throw new NotFoundError('Attempt not found');
     }
+
+    existingAttempt.completedAt = new Date();
+    await existingAttempt.save();
 
     return {
         id: existingAttempt._id,
