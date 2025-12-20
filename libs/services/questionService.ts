@@ -1,148 +1,128 @@
-import { QuestionDao, QuestionInput } from "../models/frontend/question";
-import { BinaryChoiceQuestion, LikertScaleQuestion, MultipleChoiceQuestion, OpenEndedQuestion, QuestionType } from "../models/questionSchema";
-import { Survey, SurveyModel } from "../models/surveySchema";
+import { BinaryChoiceQuestionDao, QuestionDao, QuestionInput } from "../models/frontend/question";
+import { QuestionType } from "../models/questionSchema";
+import { getQuestionById, deleteQuestion as deleteQuestionFromDb, createQuestion as createQuestionInDb } from "../repositories/questionRepository";
+import { getSurveyById } from "../repositories/surveyRepository";
 
 export async function createQuestion(surveyId: string, questionData: QuestionInput) {
-    const survey = await SurveyModel.findById(surveyId).exec();
-    if (!survey) {
-        throw new Error('Survey not found');
-    }
-
     switch (questionData.questionType) {
         case 'multiple-choice':
-            survey.questions.push({
+            return createQuestionInDb(surveyId, {
+                questionType: QuestionType.MULTIPLE_CHOICE,
                 text: questionData.title,
                 options: questionData.options
-            } as MultipleChoiceQuestion);
-            break;
+            });
         case 'binary-choice':
-            survey.questions.push({
+            return createQuestionInDb(surveyId, {
+                questionType: QuestionType.BINARY_CHOICE,
                 text: questionData.title,
                 positiveLabel: questionData.positiveLabel,
                 negativeLabel: questionData.negativeLabel
-            } as BinaryChoiceQuestion);
-            break;
+            });
         case 'likert-scale':
-            survey.questions.push({
+            return createQuestionInDb(surveyId, {
+                questionType: QuestionType.LIKERT_SCALE,
                 text: questionData.title,
                 positiveLabel: questionData.positiveLabel,
                 negativeLabel: questionData.negativeLabel
-            } as LikertScaleQuestion);
-            break;
+            });
         case 'open-ended':
-            survey.questions.push({
+            return createQuestionInDb(surveyId, {
+                questionType: QuestionType.OPEN_ENDED,
                 text: questionData.title,
-                questionType: 'open-ended'
-            } as OpenEndedQuestion);
-            break;
+            });
         default:
             throw new Error('Invalid question type');
     }
-
-    await survey.save();
 }
 
 export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionDao[]> {
-    const survey = await SurveyModel.findById(surveyId).exec();
+    const survey = await getSurveyById(surveyId);
     if (!survey) {
         throw new Error('Survey not found');
     }
 
     return survey.questions.map(question => {
-        if (question instanceof BinaryChoiceQuestion) {
+        if (question.questionType === QuestionType.BINARY_CHOICE) {
             return {
-                id: question.id,
+                id: question._id,
                 questionType: 'binary-choice',
                 positiveLabel: question.positiveLabel,
                 negativeLabel: question.negativeLabel,
                 title: question.text
-            };
+            } as BinaryChoiceQuestionDao;
         }
-        else if (question instanceof LikertScaleQuestion) {
+        else if (question.questionType === QuestionType.LIKERT_SCALE) {
             return {
-                id: question.id,
+                id: question._id,
                 questionType: 'likert-scale',
                 positiveLabel: question.positiveLabel,
                 negativeLabel: question.negativeLabel,
                 title: question.text
             };
         }
-        else if (question instanceof MultipleChoiceQuestion) {
+        else if (question.questionType === QuestionType.MULTIPLE_CHOICE) {
             return {
-                id: question.id,
+                id: question._id,
                 questionType: 'multiple-choice',
                 title: question.text,
                 options: question.options
             };
         }
-        else if (question instanceof OpenEndedQuestion) {
+        else if (question.questionType === QuestionType.OPEN_ENDED) {
             return {
-                id: question.id,
+                id: question._id,
                 questionType: 'open-ended',
                 title: question.text
             };
         } else {
-            throw new Error("Unsupported question type");
+            return null;
         }
     });
 }
 
 export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionInput) {
-    const survey = await SurveyModel.findById(surveyId).exec();
-    if (!survey) {
-        throw new Error('Survey not found');
-    }
+    const question = await getQuestionById(questionId, surveyId);
 
-    const question = survey.questions.id(questionId);
     if (!question) {
         throw new Error('Question not found');
     }
 
-    switch (questionData.questionType) {
-        case 'multiple-choice':
-            question.updateOne({
-                text: questionData.title,
-                options: questionData.options
-            });
-            break;
-        case 'binary-choice':
-            question.updateOne({
-                text: questionData.title,
-                positiveLabel: questionData.positiveLabel,
-                negativeLabel: questionData.negativeLabel
-            });
-            break;
-        case 'likert-scale':
-            question.updateOne({
-                text: questionData.title,
-                positiveLabel: questionData.positiveLabel,
-                negativeLabel: questionData.negativeLabel
-            });
-            break;
-        case 'open-ended':
-            question.updateOne({
-                text: questionData.title,
-            });
-            break;
-        default:
-            throw new Error('Invalid question type');
+    if (question.questionType !== questionData.questionType) {
+        throw new Error('Question type cannot be changed');
     }
 
-    await survey.save();
+    if(question.questionType === QuestionType.MULTIPLE_CHOICE
+        && questionData.questionType === QuestionType.MULTIPLE_CHOICE
+    ) {
+        question.text = questionData.title;
+        question.options = questionData.options;
+    }
+
+    if(question.questionType === QuestionType.OPEN_ENDED
+        && questionData.questionType === QuestionType.OPEN_ENDED
+    ) {
+        question.text = questionData.title;
+    }
+
+    if(question.questionType === QuestionType.BINARY_CHOICE
+        && questionData.questionType === QuestionType.BINARY_CHOICE
+    ) {
+        question.text = questionData.title;
+        question.positiveLabel = questionData.positiveLabel;
+        question.negativeLabel = questionData.negativeLabel;
+    }
+    
+    if(question.questionType === QuestionType.LIKERT_SCALE
+        && questionData.questionType === QuestionType.LIKERT_SCALE
+    ) {
+        question.text = questionData.title;
+        question.positiveLabel = questionData.positiveLabel;
+        question.negativeLabel = questionData.negativeLabel;
+    }
+
+    await editQuestion(surveyId, questionId, question);
 }
 
 export async function deleteQuestion(surveyId: string, questionId: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
-    if (!survey) {
-        throw new Error('Survey not found');
-    }
-
-    const question = survey.questions.pull({ _id: questionId });
-    if (!question) {
-        throw new Error('Question not found');
-    }
-
-    question.remove();
-
-    await survey.save();
+    return await deleteQuestionFromDb(questionId, surveyId);
 }
