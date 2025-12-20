@@ -4,7 +4,7 @@ import { surveyorDb } from "./database";
 
 const ATTEMPTS_COLLECTION = 'attempts';
 
-export async function deleteExistingAttempt(attemptId: string, userId: string) {
+export async function deleteAttempt(attemptId: string, userId: string) {
     const query = {
         _id: new ObjectId(attemptId),
         user: userId 

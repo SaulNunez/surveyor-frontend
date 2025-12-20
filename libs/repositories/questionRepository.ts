@@ -13,7 +13,7 @@ export async function deleteQuestion(questionId: string, surveyId: string) {
     return result.deletedCount === 1;
 }
 
-export async function editQuestion(surveyId: string, questionId: string, questionData: Question) {
+export async function updateQuestion(surveyId: string, questionId: string, questionData: Question) {
     const query = {
         _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)

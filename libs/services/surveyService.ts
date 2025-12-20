@@ -28,7 +28,7 @@ export async function getSurvey(surveyId: string) {
 }
 
 export async function createSurvey(title: string, description: string, userId: string) {
-    const survey = await surveyRepository.createSurvey({ title, description, user: userId });
+    const survey = await surveyRepository.createSurvey(userId, title, description);
 
     return {
         id: survey._id,
@@ -48,7 +48,7 @@ export async function editSurvey(surveyId: string, userId: string, title: string
         throw new NotFoundError('Survey not found');
     }
 
-    const updatedSurvey = await surveyRepository.updateSurvey(surveyId, { title, description });
+    const updatedSurvey = await surveyRepository.updateSurvey(surveyId, userId, title, description );
     return {
         id: updatedSurvey._id,
         title: updatedSurvey.title,
@@ -67,6 +67,6 @@ export async function deleteSurvey(surveyId: string, userId: string) {
         throw new NotFoundError('Survey not found');
     }
 
-    await surveyRepository.deleteSurvey(surveyId);
+    await surveyRepository.deleteSurvey(surveyId, userId);
     return true;
 }

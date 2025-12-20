@@ -13,7 +13,7 @@ export async function deleteSurvey(surveyId: string, userId: string) {
     return result.deletedCount === 1;
 }
 
-export async function editSurvey(surveyId: string, userId: string, title: string, description: string) {
+export async function updateSurvey(surveyId: string, userId: string, title: string, description: string) {
         const query = {
         _id: new ObjectId(surveyId),
         user: userId
@@ -44,4 +44,9 @@ export async function getSurveyById(surveyId: string) {
     const query = { _id: new ObjectId(surveyId) };
     const survey = await surveyorDb.collection<Survey>(SURVEY_COLLECTION).findOne(query);
     return survey;
+}
+
+export function getSurveysByUser(userId: string) {
+    const query = { user: userId };
+    return surveyorDb.collection<Survey>(SURVEY_COLLECTION).find(query).toArray();
 }
