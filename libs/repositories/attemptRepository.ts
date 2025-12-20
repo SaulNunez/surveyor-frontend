@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { Attempt } from "../models/attemptSchema";
 import { surveyorDb } from "./database";
 
@@ -5,19 +6,19 @@ const ATTEMPTS_COLLECTION = 'attempts';
 
 export async function deleteExistingAttempt(attemptId: string, userId: string) {
     const query = {
-        _id: attemptId,
+        _id: new ObjectId(attemptId),
         user: userId 
     };
-    const result = surveyorDb.collection(ATTEMPTS_COLLECTION).deleteOne(query);
+    const result = await surveyorDb.collection(ATTEMPTS_COLLECTION).deleteOne(query);
     return result.deletedCount === 1;
 }
 
 export async function editExistingAttempt(attemptId: string, userId: string, attemptData: Attempt) {
         const query = {
-        _id: attemptId,
+        _id: new ObjectId(attemptId),
         user: userId
     };
-    const result = surveyorDb.collection(ATTEMPTS_COLLECTION).updateOne(query, attemptData);
+    const result = await surveyorDb.collection(ATTEMPTS_COLLECTION).updateOne(query, attemptData);
     return result.modifiedCount === 1;
 }
 
@@ -33,7 +34,7 @@ export async function createAttempt(surveyId: string, userId: string) {
 }
 
 export async function getAttemptById(attemptId: string) {
-    const query = { _id: attemptId };
+    const query = { _id: new ObjectId(attemptId) };
     const attempt = await surveyorDb.collection(ATTEMPTS_COLLECTION).findOne(query);
     return attempt;
 }
