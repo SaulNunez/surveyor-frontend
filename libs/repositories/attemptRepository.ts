@@ -1,0 +1,38 @@
+import { Attempt } from "../models/attemptSchema";
+
+const ATTEMPTS_COLLECTION = 'attempts';
+
+export async function deleteExistingAttempt(attemptId: string, userId: string) {
+    const query = {
+        _id: attemptId,
+        user: userId 
+    };
+    const result = surveyorDb.collection(ATTEMPTS_COLLECTION).deleteOne(query);
+    return result.deletedCount === 1;
+}
+
+export async function editExistingAttempt(attemptId: string, userId: string, attemptData: Attempt) {
+        const query = {
+        _id: attemptId,
+        user: userId
+    };
+    const result = surveyorDb.collection(ATTEMPTS_COLLECTION).updateOne(query, attemptData);
+    return result.modifiedCount === 1;
+}
+
+export async function createAttempt(surveyId: string, userId: string) {
+    const attempt : Attempt = {
+        survey: surveyId,
+        user: userId,
+        responses: [],
+        startedAt: new Date()
+    };
+    surveyorDb.collection(ATTEMPTS_COLLECTION).insertOne(attempt);
+    return attempt;
+}
+
+export async function getAttemptById(attemptId: string) {
+    const query = { _id: attemptId };
+    const attempt = await surveyorDb.collection(ATTEMPTS_COLLECTION).findOne(query);
+    return attempt;
+}
