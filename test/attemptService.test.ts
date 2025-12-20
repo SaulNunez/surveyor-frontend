@@ -1,94 +1,123 @@
-import { AttemptModel } from "../libs/models/attemptSchema";
-import { createNewAttempt, deleteAttempt, completeAttempt, getAttempt } from "../libs/services/attemptService";
+import { createNewAttempt, deleteExistingAttempt, completeExistingAttempt, getExistingAttempt } from "../libs/services/attemptService";
 import { NotFoundError } from "../libs/models/Errors/notFoundError";
-import { SurveyModel } from "../libs/models/surveySchema";
+import { InvalidOperationError } from "../libs/models/Errors/invalidOperationError";
+import * as attemptRepository from "../libs/repositories/attemptRepository";
 
-jest.mock("../libs/models/attemptSchema");
-jest.mock("../libs/models/surveySchema");
+jest.mock("../libs/repositories/attemptRepository");
 
-const mockAttempt = {
-  _id: "attempt-id",
-  surveyId: "survey-id",
-  userId: "user-id",
-  answers: {},
-  completed: false,
-  save: jest.fn(),
-};
+describe("attemptService", () => {
+  const userId = "user-id";
+  const surveyId = "survey-id";
+  const attemptId = "attempt-id";
 
-const userId = "user-id";
-const surveyId = "survey-id";
-const attemptId = "attempt-id";
+  const mockAttempt = {
+    _id: attemptId,
+    survey: surveyId,
+    user: userId,
+    startedAt: new Date(),
+    completedAt: undefined,
+  };
 
-beforeEach(() => {
-  jest.clearAllMocks();
-});
+  const mockGetAttemptBySurveyAndUser = attemptRepository.getAttemptBySurveyAndUser as jest.Mock;
+  const mockCreateAttempt = attemptRepository.createAttempt as jest.Mock;
+  const mockGetAttemptById = attemptRepository.getAttemptById as jest.Mock;
+  const mockEditExistingAttempt = attemptRepository.editExistingAttempt as jest.Mock;
+  const mockDeleteAttempt = attemptRepository.deleteAttempt as jest.Mock;
 
-test("Creating new attempt when given surveyId doens't exist", async () => {
-  jest.spyOn(SurveyModel, "findById").mockResolvedValue(null);
-  await expect(createNewAttempt(surveyId, userId)).rejects.toThrow(NotFoundError);
-});
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-test("Creating new attempt when given surveyId has no existing attempts", async () => {
-  jest.spyOn(SurveyModel, "findById").mockResolvedValue({ _id: surveyId });
-  jest.spyOn(AttemptModel, "findOne").mockResolvedValue(null);
-  jest.spyOn(AttemptModel, "create").mockResolvedValue(mockAttempt);
+  describe("createNewAttempt", () => {
+    it("should create new attempt if no existing attempt", async () => {
+      mockGetAttemptBySurveyAndUser.mockResolvedValue(null);
+      mockCreateAttempt.mockResolvedValue(mockAttempt);
 
-  const result = await createNewAttempt(surveyId, userId);
-  expect(result).toEqual(mockAttempt);
-});
+      const result = await createNewAttempt(surveyId, userId);
 
-test("Creating new attempt when given surveyId has existing completed attempt", async () => {
-  jest.spyOn(SurveyModel, "findById").mockResolvedValue({ _id: surveyId });
-  const completedAttempt = { ...mockAttempt, completed: true };
-  jest.spyOn(AttemptModel, "findOne").mockResolvedValue(completedAttempt);
-  jest.spyOn(AttemptModel, "create").mockResolvedValue(mockAttempt);
+      expect(result.id).toBe(attemptId);
+      expect(mockCreateAttempt).toHaveBeenCalledWith(surveyId, userId);
+    });
 
-  const result = await createNewAttempt(surveyId, userId);
-  expect(result).toEqual(mockAttempt);
-});
+    it("should return existing attempt if it is completed", async () => {
+      const completedAttempt = { ...mockAttempt, completedAt: new Date() };
+      mockGetAttemptBySurveyAndUser.mockResolvedValue(completedAttempt);
 
-test("Creating new attempt when given surveyId has existing uncompleted attempt", async () => {
-  jest.spyOn(SurveyModel, "findById").mockResolvedValue({ _id: surveyId });
-  jest.spyOn(AttemptModel, "findOne").mockResolvedValue(mockAttempt);
+      const result = await createNewAttempt(surveyId, userId);
 
-  const result = await createNewAttempt(surveyId, userId);
-  expect(result).toEqual(mockAttempt);
-  expect(AttemptModel.create).not.toHaveBeenCalled();
-});
+      expect(result.id).toBe(attemptId);
+      expect(mockCreateAttempt).not.toHaveBeenCalled();
+    });
 
-test("Deleting attempt that doesn't exist", async () => {
-  jest.spyOn(AttemptModel, "findById").mockResolvedValue(null);
-  await expect(deleteAttempt(attemptId)).rejects.toThrow(NotFoundError);
-});
+    it("should create new attempt if existing attempt is not completed", async () => {
+      // Based on current service logic: if existing attempt is NOT completed, it falls through to createAttempt
+      mockGetAttemptBySurveyAndUser.mockResolvedValue(mockAttempt);
+      mockCreateAttempt.mockResolvedValue({ ...mockAttempt, _id: "new-id" });
 
-test("Deleting attempt that exists", async () => {
-  jest.spyOn(AttemptModel, "findById").mockResolvedValue(mockAttempt);
-  jest.spyOn(AttemptModel, "deleteOne").mockResolvedValue({ deletedCount: 1 });
+      const result = await createNewAttempt(surveyId, userId);
 
-  await deleteAttempt(attemptId);
-  expect(AttemptModel.deleteOne).toHaveBeenCalledWith({ _id: attemptId });
-});
+      expect(result.id).toBe("new-id");
+      expect(mockCreateAttempt).toHaveBeenCalledWith(surveyId, userId);
+    });
+  });
 
-test("Completing attempt that doesn't exist", async () => {
-  jest.spyOn(AttemptModel, "findById").mockResolvedValue(null);
-  await expect(completeAttempt(attemptId, {})).rejects.toThrow(NotFoundError);
-});
+  describe("deleteExistingAttempt", () => {
+    it("should throw NotFoundError if attempt does not exist", async () => {
+      mockGetAttemptById.mockResolvedValue(null);
+      await expect(deleteExistingAttempt(attemptId, userId)).rejects.toThrow(NotFoundError);
+    });
 
-test("Completing attempt that exists", async () => {
-  jest.spyOn(AttemptModel, "findById").mockResolvedValue(mockAttempt);
-  await completeAttempt(attemptId, { q1: "a1" });
-  expect(mockAttempt.save).toHaveBeenCalled();
-});
+    it("should throw NotFoundError if attempt belongs to another user", async () => {
+      mockGetAttemptById.mockResolvedValue({ ...mockAttempt, user: "other-user" });
+      await expect(deleteExistingAttempt(attemptId, userId)).rejects.toThrow(NotFoundError);
+    });
 
-test("Getting existing attempt when surveyId doesn't exist", async () => {
-  jest.spyOn(SurveyModel, "findById").mockResolvedValue(null);
-  await expect(getAttempt(surveyId, userId)).rejects.toThrow(NotFoundError);
-});
+    it("should delete attempt if found and user matches", async () => {
+      mockGetAttemptById.mockResolvedValue(mockAttempt);
+      mockDeleteAttempt.mockResolvedValue(true);
 
-test("Getting existing attempt when surveyId has no attempts for this user", async () => {
-  jest.spyOn(SurveyModel, "findById").mockResolvedValue({ _id: surveyId });
-  jest.spyOn(AttemptModel, "findOne").mockResolvedValue(null);
-  
-  const result = await getAttempt(surveyId, userId);
-  expect(result).toBeNull();
+      await deleteExistingAttempt(attemptId, userId);
+      expect(mockDeleteAttempt).toHaveBeenCalledWith(attemptId);
+    });
+  });
+
+  describe("completeExistingAttempt", () => {
+    it("should throw NotFoundError if attempt does not exist", async () => {
+      mockGetAttemptById.mockResolvedValue(null);
+      await expect(completeExistingAttempt(attemptId, userId)).rejects.toThrow(NotFoundError);
+    });
+
+    it("should throw InvalidOperationError if attempt already completed", async () => {
+      mockGetAttemptById.mockResolvedValue({ ...mockAttempt, completedAt: new Date() });
+      await expect(completeExistingAttempt(attemptId, userId)).rejects.toThrow(InvalidOperationError);
+    });
+
+    it("should complete attempt if valid", async () => {
+      mockGetAttemptById.mockResolvedValue(mockAttempt);
+
+      const result = await completeExistingAttempt(attemptId, userId);
+
+      expect(result.completedAt).toBeDefined();
+      expect(mockEditExistingAttempt).toHaveBeenCalledWith(attemptId, userId, expect.objectContaining({ completedAt: expect.any(Date) }));
+    });
+  });
+
+  describe("getExistingAttempt", () => {
+    it("should throw NotFoundError if no attempt found", async () => {
+      mockGetAttemptBySurveyAndUser.mockResolvedValue(null);
+      await expect(getExistingAttempt(surveyId, userId)).rejects.toThrow(NotFoundError);
+    });
+
+    it("should return null if attempt is completed", async () => {
+      mockGetAttemptBySurveyAndUser.mockResolvedValue({ ...mockAttempt, completedAt: new Date() });
+      const result = await getExistingAttempt(surveyId, userId);
+      expect(result).toBeNull();
+    });
+
+    it("should return attempt if active", async () => {
+      mockGetAttemptBySurveyAndUser.mockResolvedValue(mockAttempt);
+      const result = await getExistingAttempt(surveyId, userId);
+      expect(result.id).toBe(attemptId);
+    });
+  });
 });

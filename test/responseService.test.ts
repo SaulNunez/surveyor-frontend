@@ -1,16 +1,21 @@
 import { addResponseToQuestion, getExistingResponseInQuestion, updateResponseToQuestion } from "../libs/services/responseService";
-import { QuestionModel } from "../libs/models/questionSchema";
-import { AttemptModel } from "../libs/models/attemptSchema";
 import { NotFoundError } from "../libs/models/Errors/notFoundError";
-import { InvalidOperationError } from "../libs/models/Errors/invalidOperationError";
+import * as responseRepository from "../libs/repositories/responseRepository";
+import * as questionRepository from "../libs/repositories/questionRepository";
 
-jest.mock("../libs/models/questionSchema");
-jest.mock("../libs/models/attemptSchema");
+jest.mock("../libs/repositories/responseRepository");
+jest.mock("../libs/repositories/questionRepository");
 
 describe("responseService", () => {
   const attemptId = "attempt-id";
   const questionId = "question-id";
-  const mockSave = jest.fn();
+  const surveyId = "survey-id";
+  const responseId = "response-id";
+
+  const mockGetQuestionById = questionRepository.getQuestionById as jest.Mock;
+  const mockCreateResponse = responseRepository.createResponse as jest.Mock;
+  const mockGetResponseForQuestion = responseRepository.getResponseForQuestion as jest.Mock;
+  const mockEditResponse = responseRepository.editResponse as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -18,184 +23,142 @@ describe("responseService", () => {
 
   describe("addResponseToQuestion", () => {
     it("should throw NotFoundError if question does not exist", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue(null);
-      await expect(addResponseToQuestion(attemptId, questionId, {} as any)).rejects.toThrow(NotFoundError);
+      mockGetQuestionById.mockResolvedValue(null);
+      await expect(addResponseToQuestion(attemptId, questionId, surveyId, {} as any)).rejects.toThrow(NotFoundError);
     });
 
-    it("should throw NotFoundError if attempt does not exist", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(null);
-      await expect(addResponseToQuestion(attemptId, questionId, {} as any)).rejects.toThrow(NotFoundError);
-    });
-
-    it("should throw InvalidOperationError if response already exists", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue({
-        _id: attemptId,
-        responses: [{ question: questionId }],
-      });
-      await expect(addResponseToQuestion(attemptId, questionId, {} as any)).rejects.toThrow(InvalidOperationError);
+    it("should throw Error if response question type does not match question type", async () => {
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "open-ended" });
+      await expect(addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "multiple-choice" } as any)).rejects.toThrow("Response question type does not match the question type");
     });
 
     it("should add open-ended response", async () => {
-      const attempt = { _id: attemptId, responses: [], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "open-ended" });
 
-      await addResponseToQuestion(attemptId, questionId, { questionType: "open-ended", response: "answer" } as any);
+      await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "open-ended", response: "answer" } as any);
 
-      expect(attempt.responses).toHaveLength(1);
-      expect(attempt.responses[0]).toMatchObject({ question: questionId, response: "answer" });
-      expect(mockSave).toHaveBeenCalled();
+      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
+        question: questionId,
+        response: "answer"
+      });
     });
 
     it("should add likert-scale response", async () => {
-      const attempt = { _id: attemptId, responses: [], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "likert-scale" });
 
-      await addResponseToQuestion(attemptId, questionId, { questionType: "likert-scale", selectedValue: 3 } as any);
+      await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "likert-scale", selectedValue: 3 } as any);
 
-      expect(attempt.responses[0]).toMatchObject({ question: questionId, rating: 3 });
-      expect(mockSave).toHaveBeenCalled();
+      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
+        question: questionId,
+        rating: 3
+      });
     });
 
     it("should throw Error for invalid likert-scale value", async () => {
-      const attempt = { _id: attemptId, responses: [], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "likert-scale" });
 
-      await expect(addResponseToQuestion(attemptId, questionId, { questionType: "likert-scale", selectedValue: 6 } as any)).rejects.toThrow("Selected value must be between 1 and 5");
+      await expect(addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "likert-scale", selectedValue: 6 } as any)).rejects.toThrow("Selected value must be between 1 and 5");
     });
 
     it("should add multiple-choice response", async () => {
-      const attempt = { _id: attemptId, responses: [], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "multiple-choice" });
 
-      await addResponseToQuestion(attemptId, questionId, { questionType: "multiple-choice", selectedOptionIndex: 1 } as any);
+      await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "multiple-choice", selectedOptionIndex: 1 } as any);
 
-      expect(attempt.responses[0]).toMatchObject({ question: questionId, selectedOption: 1 });
-      expect(mockSave).toHaveBeenCalled();
+      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
+        question: questionId,
+        selectedOption: 1
+      });
     });
 
     it("should add binary-choice response", async () => {
-      const attempt = { _id: attemptId, responses: [], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "binary-choice" });
 
-      await addResponseToQuestion(attemptId, questionId, { questionType: "binary-choice", selectedOption: "positive" } as any);
+      await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "binary-choice", selectedOption: "positive" } as any);
 
-      expect(attempt.responses[0]).toMatchObject({ question: questionId, choice: true });
-      expect(mockSave).toHaveBeenCalled();
+      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
+        question: questionId,
+        choice: true
+      });
     });
 
     it("should throw Error for unsupported question type", async () => {
-      const attempt = { _id: attemptId, responses: [], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
-
-      await expect(addResponseToQuestion(attemptId, questionId, { questionType: "unknown" } as any)).rejects.toThrow("Unsupported question type");
+      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "unknown" });
+      await expect(addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "unknown" } as any)).rejects.toThrow("Unsupported question type");
     });
   });
 
   describe("getExistingResponseInQuestion", () => {
-    it("should throw NotFoundError if question does not exist", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue(null);
-      await expect(getExistingResponseInQuestion(attemptId, questionId)).rejects.toThrow(NotFoundError);
-    });
-
-    it("should throw NotFoundError if attempt does not exist", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(null);
-      await expect(getExistingResponseInQuestion(attemptId, questionId)).rejects.toThrow(NotFoundError);
-    });
-
     it("should throw NotFoundError if response not found", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue({ _id: attemptId, responses: [] });
+      mockGetResponseForQuestion.mockResolvedValue(null);
       await expect(getExistingResponseInQuestion(attemptId, questionId)).rejects.toThrow(NotFoundError);
     });
 
-    it("should return the response", async () => {
-      const mockResponse = { question: questionId, response: "test" };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue({ _id: attemptId, responses: [mockResponse] });
-
+    it("should return open-ended response", async () => {
+      mockGetResponseForQuestion.mockResolvedValue({ responseType: "open-ended", response: "test" });
       const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual({ questionType: "open-ended", response: "test" });
+    });
+
+    it("should return likert-scale response", async () => {
+      mockGetResponseForQuestion.mockResolvedValue({ responseType: "likert-scale", rating: 4 });
+      const result = await getExistingResponseInQuestion(attemptId, questionId);
+      expect(result).toEqual({ questionType: "likert-scale", selectedValue: 4 });
+    });
+
+    it("should return multiple-choice response", async () => {
+      mockGetResponseForQuestion.mockResolvedValue({ responseType: "multiple-choice", selectedOption: 2 });
+      const result = await getExistingResponseInQuestion(attemptId, questionId);
+      expect(result).toEqual({ questionType: "multiple-choice", selectedOptionIndex: 2 });
+    });
+
+    it("should return binary-choice response", async () => {
+      mockGetResponseForQuestion.mockResolvedValue({ responseType: "binary-choice", choice: true });
+      const result = await getExistingResponseInQuestion(attemptId, questionId);
+      expect(result).toEqual({ questionType: "binary-choice", selectedOption: "positive" });
+    });
+
+    it("should throw Error for unsupported response type", async () => {
+      mockGetResponseForQuestion.mockResolvedValue({ responseType: "unknown" });
+      await expect(getExistingResponseInQuestion(attemptId, questionId)).rejects.toThrow("Unsupported response type");
     });
   });
 
   describe("updateResponseToQuestion", () => {
-    it("should throw NotFoundError if question does not exist", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue(null);
-      await expect(updateResponseToQuestion(attemptId, questionId, {} as any)).rejects.toThrow(NotFoundError);
-    });
-
-    it("should throw NotFoundError if attempt does not exist", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(null);
-      await expect(updateResponseToQuestion(attemptId, questionId, {} as any)).rejects.toThrow(NotFoundError);
-    });
-
-    it("should throw NotFoundError if response not found", async () => {
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue({ _id: attemptId, responses: [] });
-      await expect(updateResponseToQuestion(attemptId, questionId, {} as any)).rejects.toThrow(NotFoundError);
-    });
-
     it("should update open-ended response", async () => {
-      const mockResponse = { question: questionId, responseType: "open-ended", response: "old" };
-      const attempt = { _id: attemptId, responses: [mockResponse], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
-
-      await updateResponseToQuestion(attemptId, questionId, { response: "new" } as any);
-      expect(mockResponse.response).toBe("new");
-      expect(mockSave).toHaveBeenCalled();
+      await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "open-ended", response: "new" } as any);
+      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
+        question: questionId,
+        response: "new"
+      });
     });
 
     it("should update multiple-choice response", async () => {
-      const mockResponse = { question: questionId, responseType: "multiple-choice", selectedOption: 0 };
-      const attempt = { _id: attemptId, responses: [mockResponse], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
-
-      await updateResponseToQuestion(attemptId, questionId, { selectedOptionIndex: 1 } as any);
-      expect(mockResponse.selectedOption).toBe(1);
-      expect(mockSave).toHaveBeenCalled();
+      await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "multiple-choice", selectedOptionIndex: 1 } as any);
+      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
+        question: questionId,
+        selectedOption: 1
+      });
     });
 
     it("should update binary-choice response", async () => {
-      const mockResponse = { question: questionId, responseType: "binary-choice", choice: false };
-      const attempt = { _id: attemptId, responses: [mockResponse], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
-
-      await updateResponseToQuestion(attemptId, questionId, { selectedOption: "positive" } as any);
-      expect(mockResponse.choice).toBe(true);
-      expect(mockSave).toHaveBeenCalled();
+      await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "binary-choice", selectedOption: "positive" } as any);
+      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
+        question: questionId,
+        choice: true
+      });
     });
 
     it("should update likert-scale response", async () => {
-      const mockResponse = { question: questionId, responseType: "likert-scale", rating: 1 };
-      const attempt = { _id: attemptId, responses: [mockResponse], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
-
-      await updateResponseToQuestion(attemptId, questionId, { selectedValue: 5 } as any);
-      expect(mockResponse.rating).toBe(5);
-      expect(mockSave).toHaveBeenCalled();
+      await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "likert-scale", selectedValue: 5 } as any);
+      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
+        question: questionId,
+        rating: 5
+      });
     });
 
     it("should throw Error for invalid likert-scale update", async () => {
-      const mockResponse = { question: questionId, responseType: "likert-scale", rating: 1 };
-      const attempt = { _id: attemptId, responses: [mockResponse], save: mockSave };
-      jest.spyOn(QuestionModel, "findById").mockResolvedValue({ _id: questionId });
-      jest.spyOn(AttemptModel, "findById").mockResolvedValue(attempt);
-
-      await expect(updateResponseToQuestion(attemptId, questionId, { selectedValue: 6 } as any)).rejects.toThrow("Rating must be between 1 and 5");
+      await expect(updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "likert-scale", selectedValue: 6 } as any)).rejects.toThrow("Rating must be between 1 and 5");
     });
   });
 });

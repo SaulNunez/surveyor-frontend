@@ -1,8 +1,8 @@
 import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey } from "../libs/services/surveyService";
-import { SurveyModel } from "../libs/models/surveySchema";
 import { NotFoundError } from "../libs/models/Errors/notFoundError";
+import * as surveyRepository from "../libs/repositories/surveyRepository";
 
-jest.mock("../libs/models/surveySchema");
+jest.mock("../libs/repositories/surveyRepository");
 
 describe("surveyService", () => {
   const userId = "user-id";
@@ -13,8 +13,13 @@ describe("surveyService", () => {
     description: "Test Description",
     user: userId,
     createdAt: new Date(),
-    save: jest.fn(),
   };
+
+  const mockGetSurveysByUser = surveyRepository.getSurveysByUser as jest.Mock;
+  const mockGetSurveyById = surveyRepository.getSurveyById as jest.Mock;
+  const mockCreateSurvey = surveyRepository.createSurvey as jest.Mock;
+  const mockUpdateSurvey = surveyRepository.updateSurvey as jest.Mock;
+  const mockDeleteSurvey = surveyRepository.deleteSurvey as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -22,31 +27,26 @@ describe("surveyService", () => {
 
   describe("getAllSurveysForUser", () => {
     it("should return surveys for user", async () => {
-      const surveys = [mockSurvey];
-      jest.spyOn(SurveyModel, "find").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(surveys),
-      } as any);
+      mockGetSurveysByUser.mockResolvedValue([mockSurvey]);
 
       const result = await getAllSurveysForUser(userId);
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe(surveyId);
+      expect(mockGetSurveysByUser).toHaveBeenCalledWith(userId);
     });
   });
 
   describe("getSurvey", () => {
     it("should return survey if found", async () => {
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockSurvey),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(mockSurvey);
 
       const result = await getSurvey(surveyId);
       expect(result.id).toBe(surveyId);
+      expect(mockGetSurveyById).toHaveBeenCalledWith(surveyId);
     });
 
     it("should throw NotFoundError if survey not found", async () => {
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(null);
 
       await expect(getSurvey(surveyId)).rejects.toThrow(NotFoundError);
     });
@@ -54,39 +54,33 @@ describe("surveyService", () => {
 
   describe("createSurvey", () => {
     it("should create and return survey", async () => {
-      jest.spyOn(SurveyModel, "create").mockResolvedValue(mockSurvey as any);
+      mockCreateSurvey.mockResolvedValue(mockSurvey);
 
       const result = await createSurvey("Title", "Desc", userId);
       expect(result.id).toBe(surveyId);
-      expect(SurveyModel.create).toHaveBeenCalledWith({ title: "Title", description: "Desc", user: userId });
+      expect(mockCreateSurvey).toHaveBeenCalledWith({ title: "Title", description: "Desc", user: userId });
     });
   });
 
   describe("editSurvey", () => {
     it("should update survey if found and user matches", async () => {
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockSurvey),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(mockSurvey);
+      mockUpdateSurvey.mockResolvedValue({ ...mockSurvey, title: "New Title" });
 
       const result = await editSurvey(surveyId, userId, "New Title", "New Desc");
-      expect(mockSurvey.title).toBe("New Title");
-      expect(mockSurvey.save).toHaveBeenCalled();
+      expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, { title: "New Title", description: "New Desc" });
       expect(result.title).toBe("New Title");
     });
 
     it("should throw NotFoundError if survey not found", async () => {
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(null);
 
       await expect(editSurvey(surveyId, userId, "T", "D")).rejects.toThrow(NotFoundError);
     });
 
     it("should throw NotFoundError if user does not match", async () => {
       const otherUserSurvey = { ...mockSurvey, user: "other-user" };
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(otherUserSurvey),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(otherUserSurvey);
 
       await expect(editSurvey(surveyId, userId, "T", "D")).rejects.toThrow(NotFoundError);
     });
@@ -94,31 +88,23 @@ describe("surveyService", () => {
 
   describe("deleteSurvey", () => {
     it("should delete survey if found and user matches", async () => {
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockSurvey),
-      } as any);
-      jest.spyOn(SurveyModel, "deleteOne").mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(mockSurvey);
+      mockDeleteSurvey.mockResolvedValue(true);
 
       const result = await deleteSurvey(surveyId, userId);
       expect(result).toBe(true);
-      expect(SurveyModel.deleteOne).toHaveBeenCalledWith({ _id: surveyId });
+      expect(mockDeleteSurvey).toHaveBeenCalledWith(surveyId);
     });
 
     it("should throw NotFoundError if survey not found", async () => {
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(null);
 
       await expect(deleteSurvey(surveyId, userId)).rejects.toThrow(NotFoundError);
     });
 
     it("should throw NotFoundError if user does not match", async () => {
       const otherUserSurvey = { ...mockSurvey, user: "other-user" };
-      jest.spyOn(SurveyModel, "findById").mockReturnValue({
-        exec: jest.fn().mockResolvedValue(otherUserSurvey),
-      } as any);
+      mockGetSurveyById.mockResolvedValue(otherUserSurvey);
 
       await expect(deleteSurvey(surveyId, userId)).rejects.toThrow(NotFoundError);
     });

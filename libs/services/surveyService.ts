@@ -1,8 +1,8 @@
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { SurveyModel } from "../models/surveySchema";
+import * as surveyRepository from "../repositories/surveyRepository";
 
 export async function getAllSurveysForUser(userId: string) {
-    const surveys = await SurveyModel.find({user: userId}).exec();
+    const surveys = await surveyRepository.getSurveysByUser(userId);
 
     return surveys.map(survey => ({
         id: survey._id,
@@ -13,7 +13,7 @@ export async function getAllSurveysForUser(userId: string) {
 }
 
 export async function getSurvey(surveyId: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
+    const survey = await surveyRepository.getSurveyById(surveyId);
 
     if(!survey) {
         throw new NotFoundError('Survey not found');
@@ -28,7 +28,7 @@ export async function getSurvey(surveyId: string) {
 }
 
 export async function createSurvey(title: string, description: string, userId: string) {
-    const survey = await SurveyModel.create({ title, description, user: userId });
+    const survey = await surveyRepository.createSurvey({ title, description, user: userId });
 
     return {
         id: survey._id,
@@ -38,7 +38,7 @@ export async function createSurvey(title: string, description: string, userId: s
 }
 
 export async function editSurvey(surveyId: string, userId: string, title: string, description: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
+    const survey = await surveyRepository.getSurveyById(surveyId);
 
     if(!survey) {
         throw new NotFoundError('Survey not found');
@@ -48,19 +48,16 @@ export async function editSurvey(surveyId: string, userId: string, title: string
         throw new NotFoundError('Survey not found');
     }
 
-    survey.title = title;
-    survey.description = description;
-
-    await survey.save();
+    const updatedSurvey = await surveyRepository.updateSurvey(surveyId, { title, description });
     return {
-        id: survey._id,
-        title: survey.title,
-        description: survey.description
+        id: updatedSurvey._id,
+        title: updatedSurvey.title,
+        description: updatedSurvey.description
     }
 }
 
 export async function deleteSurvey(surveyId: string, userId: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
+    const survey = await surveyRepository.getSurveyById(surveyId);
 
     if(!survey) {
         throw new NotFoundError('Survey not found');
@@ -70,6 +67,6 @@ export async function deleteSurvey(surveyId: string, userId: string) {
         throw new NotFoundError('Survey not found');
     }
 
-    await SurveyModel.deleteOne({ _id: surveyId }).exec();
+    await surveyRepository.deleteSurvey(surveyId);
     return true;
 }

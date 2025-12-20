@@ -1,6 +1,6 @@
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { createAttempt, getAttemptById, getAttemptBySurveyAndUser, editExistingAttempt as editExistingAttemptDb } from "../repositories/attemptRepository";
+import { createAttempt, getAttemptById, getAttemptBySurveyAndUser, editExistingAttempt as editExistingAttemptDb, deleteAttempt } from "../repositories/attemptRepository";
 
 export async function getExistingAttempt(surveyId: string, userId: string) {
     const existingAttempt = await getAttemptBySurveyAndUser(surveyId, userId);
@@ -41,7 +41,12 @@ export async function createNewAttempt(surveyId: string, userId: string) {
 }
 
 export async function deleteExistingAttempt(attemptId: string, userId: string) {
-    return deleteExistingAttempt(attemptId, userId);
+    const existingAttempt = await getAttemptById(attemptId);
+
+    if (!existingAttempt || existingAttempt.user.toString() !== userId) {
+        throw new NotFoundError('Attempt not found');
+    }
+    return deleteAttempt(attemptId);
 }
 
 export async function completeExistingAttempt(attemptId: string, userId: string) {

@@ -1,6 +1,6 @@
 import { BinaryChoiceQuestionDao, QuestionDao, QuestionInput } from "../models/frontend/question";
 import { QuestionType } from "../models/questionSchema";
-import { getQuestionById, deleteQuestion as deleteQuestionFromDb, createQuestion as createQuestionInDb } from "../repositories/questionRepository";
+import { getQuestionById, deleteQuestion as deleteQuestionFromDb, createQuestion as createQuestionInDb, updateQuestion } from "../repositories/questionRepository";
 import { getSurveyById } from "../repositories/surveyRepository";
 
 export async function createQuestion(surveyId: string, questionData: QuestionInput) {
@@ -120,7 +120,7 @@ export async function editQuestion(surveyId: string, questionId: string, questio
         question.negativeLabel = questionData.negativeLabel;
     }
 
-    await editQuestion(surveyId, questionId, question);
+    await updateQuestion(surveyId, questionId, question);
 }
 
 export async function deleteQuestion(surveyId: string, questionId: string) {
