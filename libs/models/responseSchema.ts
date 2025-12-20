@@ -1,7 +1,7 @@
 import { QuestionBase, QuestionType } from "./questionSchema";
 
 export interface Response {
-    questionId: string;
+    question: string;
     responseType: string;
 }
 
