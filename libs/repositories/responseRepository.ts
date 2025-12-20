@@ -10,20 +10,20 @@ export async function deleteResponse(responseId: string, attemptId: string) {
         _id: new ObjectId(attemptId),
         questions: { $elemMatch: { _id: responseId } }
     };
-    const result = await surveyorDb.collection(ATTEMPTS_COLLECTION).deleteOne(query);
+    const result = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).deleteOne(query);
     return result.deletedCount === 1;
 }
 
-export async function editResponse(attemptId: string, responseId: string, questionData: Response) {
+export async function editResponse(attemptId: string, responseId: string, responseData: Response) {
     const query = {
         _id: new ObjectId(attemptId),
         "responses._id": new ObjectId(responseId)
     };
-    const result = await surveyorDb.collection(ATTEMPTS_COLLECTION).updateOne(query, questionData);
+    const result = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).updateOne(query, responseData);
     return result.modifiedCount === 1;
 }
 
-export async function createResponse(attemptId: string, questionData: Question) {
+export async function createResponse(attemptId: string, questionData: Response) {
     const query = {
         _id: new ObjectId(attemptId)
     }
@@ -32,7 +32,7 @@ export async function createResponse(attemptId: string, questionData: Question) 
             questions: questionData
         } 
     };
-    const result = await surveyorDb.collection(ATTEMPTS_COLLECTION).updateOne(query, data);
+    const result = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).updateOne(query, data);
 }
 
 export async function getResponseById(responseId: string, attemptId: string) {
@@ -40,6 +40,16 @@ export async function getResponseById(responseId: string, attemptId: string) {
         _id: new ObjectId(attemptId),
         "responses._id": new ObjectId(responseId)
     };
-    const attempt = await surveyorDb.collection(ATTEMPTS_COLLECTION).findOne(query);
+    const attempt = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).findOne(query);
+    return attempt;
+}
+
+export async function getResponseForQuestion(responseId: string, questionId: string) {
+    const query = {
+        question: questionId,
+        "responses._id": new ObjectId(responseId),
+        _id: new ObjectId(attemptId)
+    };
+    const attempt = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).findOne(query);
     return attempt;
 }

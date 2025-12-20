@@ -9,16 +9,16 @@ export async function deleteQuestion(questionId: string, surveyId: string) {
         _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)
     };
-    const result = await surveyorDb.collection(SURVEY_COLLECTION).deleteOne(query);
+    const result = await surveyorDb.collection<Question>(SURVEY_COLLECTION).deleteOne(query);
     return result.deletedCount === 1;
 }
 
-export async function editExistingQuestion(surveyId: string, questionId: string, questionData: Question) {
+export async function editQuestion(surveyId: string, questionId: string, questionData: Question) {
     const query = {
         _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)
     };
-    const result = await surveyorDb.collection(SURVEY_COLLECTION).updateOne(query, questionData);
+    const result = await surveyorDb.collection<Question>(SURVEY_COLLECTION).updateOne(query, questionData);
     return result.modifiedCount === 1;
 }
 
@@ -31,7 +31,7 @@ export async function createQuestion(surveyId: string, questionData: Question) {
             questions: questionData
         } 
     };
-    const result = await surveyorDb.collection(SURVEY_COLLECTION).updateOne(query, data);
+    const result = await surveyorDb.collection<Question>(SURVEY_COLLECTION).updateOne(query, data);
 }
 
 export async function getQuestionById(questionId: string, surveyId: string) {
@@ -39,6 +39,6 @@ export async function getQuestionById(questionId: string, surveyId: string) {
          _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)
     };
-    const attempt = await surveyorDb.collection(SURVEY_COLLECTION).findOne(query);
+    const attempt = await surveyorDb.collection<Question>(SURVEY_COLLECTION).findOne(query);
     return attempt;
 }
