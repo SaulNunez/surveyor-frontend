@@ -1,47 +1,23 @@
-import * as typegoose from "@typegoose/typegoose";
-import { Question, QuestionType } from "./questionSchema";
-import { Attempt } from "./attemptSchema";
-import { v4 as uuidv4 } from 'uuid';
+import { QuestionBase, QuestionType } from "./questionSchema";
 
-@typegoose.modelOptions({
-  schemaOptions: {
-    discriminatorKey: 'responseType',
-  },
-})
-export class Response {
-    @typegoose.prop({ required: true, default: () => uuidv4() })
-    public _id!: string;
-
-    @typegoose.prop({ ref: () => Question, required: true, type: () => String })
-    public question!: typegoose.Ref<Question, string>;
-
-    @typegoose.prop({ required: true })
-    public responseType!: string;
+export interface Response {
+    questionId: string;
+    responseType: string;
 }
 
-export const ResponseModel = typegoose.getModelForClass(Response);
-
-export class OpenEndedResponse extends Response {
-    @typegoose.prop({ required: true })
-    public response!: string;
+export interface OpenEndedResponse extends Response {
+    response: string,
+    responseType: QuestionType.OPEN_ENDED
 }
-
-export const OpenEndedResponseModel = typegoose.getDiscriminatorModelForClass(ResponseModel, OpenEndedResponse, QuestionType.OPEN_ENDED);
-
-export class MultipleChoiceResponse extends Response {
-    @typegoose.prop({ required: true })
-    public selectedOption!: number;
+export interface MultipleChoiceResponse extends Response {
+   selectedOption: number,
+   responseType: QuestionType.MULTIPLE_CHOICE
 }
-export const MultipleChoiceResponseModel = typegoose.getDiscriminatorModelForClass(ResponseModel, MultipleChoiceResponse, QuestionType.MULTIPLE_CHOICE);
-
-export class BinaryChoiceResponse extends Response {
-    @typegoose.prop({ required: true })
-    public choice!: boolean;
+export interface BinaryChoiceResponse extends Response {
+    choice: boolean,
+    responseType: QuestionType.BINARY_CHOICE
 }
-export const BinaryChoiceResponseModel = typegoose.getDiscriminatorModelForClass(ResponseModel, BinaryChoiceResponse, QuestionType.BINARY_CHOICE);
-
-export class LikertScaleResponse extends Response {
-    @typegoose.prop({ required: true })
-    public rating!: number;
+export interface LikertScaleResponse extends Response {
+    rating: number,
+    responseType: QuestionType.LIKERT_SCALE
 }
-export const LikertScaleResponseModel = typegoose.getDiscriminatorModelForClass(ResponseModel, LikertScaleResponse, QuestionType.LIKERT_SCALE);
