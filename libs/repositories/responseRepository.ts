@@ -1,5 +1,6 @@
 import { Question } from "../models/questionSchema";
 import { Response } from "../models/responseSchema";
+import { surveyorDb } from "./database";
 
 const ATTEMPTS_COLLECTION = 'attempts';
 

@@ -1,4 +1,5 @@
 import { Attempt } from "../models/attemptSchema";
+import { surveyorDb } from "./database";
 
 const ATTEMPTS_COLLECTION = 'attempts';
 

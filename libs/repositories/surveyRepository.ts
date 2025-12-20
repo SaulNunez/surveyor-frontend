@@ -1,4 +1,5 @@
 import { Survey } from "../models/surveySchema";
+import { surveyorDb } from "./database";
 
 const SURVEY_COLLECTION = 'surveys';
 
