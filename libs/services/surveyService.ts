@@ -28,12 +28,12 @@ export async function getSurvey(surveyId: string) {
 }
 
 export async function createSurvey(title: string, description: string, userId: string) {
-    const survey = await surveyRepository.createSurvey(userId, title, description);
+    const newSurveyId = await surveyRepository.createSurvey(userId, title, description);
 
     return {
-        id: survey._id,
-        title: survey.title,
-        description: survey.description
+        id: newSurveyId,
+        title: title,
+        description: description
     }
 }
 
@@ -50,7 +50,7 @@ export async function editSurvey(surveyId: string, userId: string, title: string
 
     const updatedSurvey = await surveyRepository.updateSurvey(surveyId, userId, title, description );
     return {
-        id: updatedSurvey._id,
+        id: surveyId,
         title: updatedSurvey.title,
         description: updatedSurvey.description
     }

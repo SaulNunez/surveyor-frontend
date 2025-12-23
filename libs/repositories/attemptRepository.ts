@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { Attempt } from "../models/attemptSchema";
 import { surveyorDb } from "./database";
 
@@ -29,8 +29,8 @@ export async function createAttempt(surveyId: string, userId: string) {
         responses: [],
         startedAt: new Date()
     };
-    surveyorDb.collection<Attempt>(ATTEMPTS_COLLECTION).insertOne(attempt);
-    return attempt;
+    const result = await surveyorDb.collection<Attempt>(ATTEMPTS_COLLECTION).insertOne(attempt);
+    return result.insertedId.toString();
 }
 
 export async function getAttemptById(attemptId: string) {

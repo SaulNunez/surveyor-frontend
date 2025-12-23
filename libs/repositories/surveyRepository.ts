@@ -1,8 +1,10 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { Survey } from "../models/surveySchema";
 import { surveyorDb } from "./database";
+import { Question } from "../models/questionSchema";
 
 const SURVEY_COLLECTION = 'surveys';
+type DocumentSurvey = Omit<Survey, 'questions'> & { questions: WithId<Question>[] };
 
 export async function deleteSurvey(surveyId: string, userId: string) {
     const query = {
@@ -24,7 +26,10 @@ export async function updateSurvey(surveyId: string, userId: string, title: stri
         lastUpdated: new Date()
     };
     const result = await surveyorDb.collection<Survey>(SURVEY_COLLECTION).updateOne(query, surveyData);
-    return result.modifiedCount === 1;
+    if(result.modifiedCount === 0) {
+        throw new Error('No survey updated');
+    }
+    return surveyData;
 }
 
 export async function createSurvey(userId: string, title: string, description: string) {
@@ -36,13 +41,13 @@ export async function createSurvey(userId: string, title: string, description: s
         title: title,
         description: description
     };
-    await surveyorDb.collection<Survey>(SURVEY_COLLECTION).insertOne(survey);
-    return survey;
+    const newSurveyId = await surveyorDb.collection<Survey>(SURVEY_COLLECTION).insertOne(survey);
+    return newSurveyId.insertedId.toString();
 }
 
 export async function getSurveyById(surveyId: string) {
     const query = { _id: new ObjectId(surveyId) };
-    const survey = await surveyorDb.collection<Survey>(SURVEY_COLLECTION).findOne(query);
+    const survey = await surveyorDb.collection<DocumentSurvey>(SURVEY_COLLECTION).findOne(query);
     return survey;
 }
 

@@ -1,7 +1,8 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { Question } from "../models/questionSchema";
 import { Response } from "../models/responseSchema";
 import { surveyorDb } from "./database";
+import { Survey } from "../models/surveySchema";
 
 const ATTEMPTS_COLLECTION = 'attempts';
 

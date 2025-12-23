@@ -4,12 +4,14 @@ import { surveyorDb } from "./database";
 
 const SURVEY_COLLECTION = 'surveys';
 
+type DocumentQuestion = Question & { _id: ObjectId };
+
 export async function deleteQuestion(questionId: string, surveyId: string) {
     const query = {
         _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)
     };
-    const result = await surveyorDb.collection<Question>(SURVEY_COLLECTION).deleteOne(query);
+    const result = await surveyorDb.collection<DocumentQuestion>(SURVEY_COLLECTION).deleteOne(query);
     return result.deletedCount === 1;
 }
 
@@ -18,7 +20,7 @@ export async function updateQuestion(surveyId: string, questionId: string, quest
         _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)
     };
-    const result = await surveyorDb.collection<Question>(SURVEY_COLLECTION).updateOne(query, questionData);
+    const result = await surveyorDb.collection<DocumentQuestion>(SURVEY_COLLECTION).updateOne(query, questionData);
     return result.modifiedCount === 1;
 }
 
@@ -28,10 +30,10 @@ export async function createQuestion(surveyId: string, questionData: Question) {
     }
     const data = {
         $push: {
-            questions: questionData
+            questions: { _id: new ObjectId(), ...questionData}
         } 
     };
-    const result = await surveyorDb.collection<Question>(SURVEY_COLLECTION).updateOne(query, data);
+    const result = await surveyorDb.collection<DocumentQuestion>(SURVEY_COLLECTION).updateOne(query, data);
 }
 
 export async function getQuestionById(questionId: string, surveyId: string) {
@@ -39,6 +41,6 @@ export async function getQuestionById(questionId: string, surveyId: string) {
          _id: new ObjectId(surveyId),
         "questions._id": new ObjectId(questionId)
     };
-    const attempt = await surveyorDb.collection<Question>(SURVEY_COLLECTION).findOne(query);
+    const attempt = await surveyorDb.collection<DocumentQuestion>(SURVEY_COLLECTION).findOne(query);
     return attempt;
 }

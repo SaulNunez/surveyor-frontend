@@ -1,4 +1,4 @@
-import { BinaryChoiceQuestionDao, QuestionDao, QuestionInput } from "../models/frontend/question";
+import { BinaryChoiceQuestionDao, LikertScaleQuestionDao, MultipleChoiceQuestionDao, OpenEndedQuestionDao, QuestionInput } from "../models/frontend/question";
 import { QuestionType } from "../models/questionSchema";
 import { getQuestionById, deleteQuestion as deleteQuestionFromDb, createQuestion as createQuestionInDb, updateQuestion } from "../repositories/questionRepository";
 import { getSurveyById } from "../repositories/surveyRepository";
@@ -35,7 +35,7 @@ export async function createQuestion(surveyId: string, questionData: QuestionInp
     }
 }
 
-export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionDao[]> {
+export async function getQuestionsForSurvey(surveyId: string) {
     const survey = await getSurveyById(surveyId);
     if (!survey) {
         throw new Error('Survey not found');
@@ -58,7 +58,7 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
                 positiveLabel: question.positiveLabel,
                 negativeLabel: question.negativeLabel,
                 title: question.text
-            };
+            } as LikertScaleQuestionDao;
         }
         else if (question.questionType === QuestionType.MULTIPLE_CHOICE) {
             return {
@@ -66,16 +66,17 @@ export async function getQuestionsForSurvey(surveyId: string): Promise<QuestionD
                 questionType: 'multiple-choice',
                 title: question.text,
                 options: question.options
-            };
+            } as MultipleChoiceQuestionDao;
         }
         else if (question.questionType === QuestionType.OPEN_ENDED) {
             return {
                 id: question._id,
                 questionType: 'open-ended',
                 title: question.text
-            };
-        } else {
-            return null;
+            } as OpenEndedQuestionDao;
+        }
+        else {
+            throw new Error('Invalid question type');
         }
     });
 }

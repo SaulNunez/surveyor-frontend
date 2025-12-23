@@ -58,7 +58,7 @@ describe("surveyService", () => {
 
       const result = await createSurvey("Title", "Desc", userId);
       expect(result.id).toBe(surveyId);
-      expect(mockCreateSurvey).toHaveBeenCalledWith({ title: "Title", description: "Desc", user: userId });
+      expect(mockCreateSurvey).toHaveBeenCalledWith("Title", "Desc", userId);
     });
   });
 
@@ -68,7 +68,7 @@ describe("surveyService", () => {
       mockUpdateSurvey.mockResolvedValue({ ...mockSurvey, title: "New Title" });
 
       const result = await editSurvey(surveyId, userId, "New Title", "New Desc");
-      expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, { title: "New Title", description: "New Desc" });
+      expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, "New Title", "New Desc");
       expect(result.title).toBe("New Title");
     });
 
@@ -93,7 +93,7 @@ describe("surveyService", () => {
 
       const result = await deleteSurvey(surveyId, userId);
       expect(result).toBe(true);
-      expect(mockDeleteSurvey).toHaveBeenCalledWith(surveyId);
+      expect(mockDeleteSurvey).toHaveBeenCalledWith(surveyId, userId);
     });
 
     it("should throw NotFoundError if survey not found", async () => {

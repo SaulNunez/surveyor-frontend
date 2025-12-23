@@ -31,22 +31,33 @@ export async function createNewAttempt(surveyId: string, userId: string) {
         };
     }
 
-   const newAttempt = await createAttempt(surveyId, userId);
+   const newAttemptId = await createAttempt(surveyId, userId);
+   const newAttempt = await getAttemptById(newAttemptId);
+
+   if (!newAttempt) {
+    throw new InvalidOperationError('Could not create attempt');
+   }
 
     return {
-        id: newAttempt._id,
+        id: newAttemptId,
         survey: newAttempt.survey,
         startedAt: newAttempt.startedAt
     };
 }
 
-export async function deleteExistingAttempt(attemptId: string, userId: string) {
+export async function deleteExistingAttempt(attemptId: string, userId: string): Promise<boolean> {
     const existingAttempt = await getAttemptById(attemptId);
 
     if (!existingAttempt || existingAttempt.user.toString() !== userId) {
         throw new NotFoundError('Attempt not found');
     }
-    return deleteAttempt(attemptId);
+    const deleteRes =  deleteAttempt(attemptId, userId);
+
+    if (!deleteRes) {
+        throw new InvalidOperationError('Could not delete attempt');
+    }
+
+    return true;
 }
 
 export async function completeExistingAttempt(attemptId: string, userId: string) {
