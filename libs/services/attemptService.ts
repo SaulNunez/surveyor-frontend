@@ -14,7 +14,7 @@ export async function getExistingAttempt(surveyId: string, userId: string) {
     }
 
     return {
-        id: existingAttempt._id,
+        id: existingAttempt._id.toString(),
         survey: existingAttempt.survey,
         startedAt: existingAttempt.startedAt
     };
@@ -25,7 +25,7 @@ export async function createNewAttempt(surveyId: string, userId: string) {
 
     if (existingAttempt && existingAttempt.completedAt) {
         return {
-        id: existingAttempt._id,
+        id: existingAttempt._id.toString(),
         survey: existingAttempt.survey,
         startedAt: existingAttempt.startedAt
         };
@@ -39,7 +39,7 @@ export async function createNewAttempt(surveyId: string, userId: string) {
    }
 
     return {
-        id: newAttemptId,
+        id: newAttemptId.toString(),
         survey: newAttempt.survey,
         startedAt: newAttempt.startedAt
     };
@@ -79,7 +79,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string)
     await editExistingAttemptDb(attemptId, userId, existingAttempt);
 
     return {
-        id: existingAttempt._id,
+        id: existingAttempt._id.toString(),
         survey: existingAttempt.survey,
         startedAt: existingAttempt.startedAt,
         completedAt: existingAttempt.completedAt

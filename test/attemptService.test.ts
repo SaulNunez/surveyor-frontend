@@ -77,7 +77,7 @@ describe("attemptService", () => {
       mockDeleteAttempt.mockResolvedValue(true);
 
       await deleteExistingAttempt(attemptId, userId);
-      expect(mockDeleteAttempt).toHaveBeenCalledWith(attemptId);
+      expect(mockDeleteAttempt).toHaveBeenCalledWith(attemptId, userId);
     });
   });
 
@@ -117,7 +117,7 @@ describe("attemptService", () => {
     it("should return attempt if active", async () => {
       mockGetAttemptBySurveyAndUser.mockResolvedValue(mockAttempt);
       const result = await getExistingAttempt(surveyId, userId);
-      expect(result.id).toBe(attemptId);
+      expect(result!.id).toBe(attemptId);
     });
   });
 });

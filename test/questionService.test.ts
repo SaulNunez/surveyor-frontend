@@ -132,7 +132,7 @@ describe("questionService", () => {
       await editQuestion(surveyId, questionId, input as any);
 
       expect(mockQ.text).toBe("New Title");
-      expect(mockQ.positiveLabel).toBe("Yes");
+      expect(mockQ.positiveLabel).toBe("Y");
       expect(mockUpdateQuestion).toHaveBeenCalledWith(surveyId, questionId, mockQ);
     });
 
@@ -144,7 +144,7 @@ describe("questionService", () => {
       await editQuestion(surveyId, questionId, input as any);
 
       expect(mockQ.text).toBe("New Title");
-      expect(mockQ.positiveLabel).toBe("Good");
+      expect(mockQ.positiveLabel).toBe("G");
       expect(mockUpdateQuestion).toHaveBeenCalledWith(surveyId, questionId, mockQ);
     });
 

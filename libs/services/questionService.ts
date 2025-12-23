@@ -31,7 +31,7 @@ export async function createQuestion(surveyId: string, questionData: QuestionInp
                 text: questionData.title,
             });
         default:
-            throw new Error('Invalid question type');
+            null;
     }
 }
 
@@ -76,7 +76,7 @@ export async function getQuestionsForSurvey(surveyId: string) {
             } as OpenEndedQuestionDao;
         }
         else {
-            throw new Error('Invalid question type');
+            null;
         }
     });
 }

@@ -54,11 +54,11 @@ describe("surveyService", () => {
 
   describe("createSurvey", () => {
     it("should create and return survey", async () => {
-      mockCreateSurvey.mockResolvedValue(mockSurvey);
+      mockCreateSurvey.mockResolvedValue(mockSurvey._id);
 
       const result = await createSurvey("Title", "Desc", userId);
       expect(result.id).toBe(surveyId);
-      expect(mockCreateSurvey).toHaveBeenCalledWith("Title", "Desc", userId);
+      expect(mockCreateSurvey).toHaveBeenCalledWith(userId, "Title", "Desc");
     });
   });
 
@@ -68,7 +68,7 @@ describe("surveyService", () => {
       mockUpdateSurvey.mockResolvedValue({ ...mockSurvey, title: "New Title" });
 
       const result = await editSurvey(surveyId, userId, "New Title", "New Desc");
-      expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, "New Title", "New Desc");
+      expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, userId, "New Title", "New Desc");
       expect(result.title).toBe("New Title");
     });
 
