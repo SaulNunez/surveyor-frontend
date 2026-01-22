@@ -2,13 +2,15 @@ import { createNewAttempt, deleteExistingAttempt, completeExistingAttempt, getEx
 import { NotFoundError } from "../libs/models/Errors/notFoundError";
 import { InvalidOperationError } from "../libs/models/Errors/invalidOperationError";
 import * as attemptRepository from "../libs/repositories/attemptRepository";
+import { ObjectId } from "mongodb";
 
 jest.mock("../libs/repositories/attemptRepository");
 
 describe("attemptService", () => {
   const userId = "user-id";
   const surveyId = "survey-id";
-  const attemptId = "attempt-id";
+  const attemptId = new ObjectId();
+  const attemptIdStr = attemptId.toString();
 
   const mockAttempt = {
     _id: attemptId,
@@ -64,19 +66,19 @@ describe("attemptService", () => {
   describe("deleteExistingAttempt", () => {
     it("should throw NotFoundError if attempt does not exist", async () => {
       mockGetAttemptById.mockResolvedValue(null);
-      await expect(deleteExistingAttempt(attemptId, userId)).rejects.toThrow(NotFoundError);
+      await expect(deleteExistingAttempt(attemptIdStr, userId)).rejects.toThrow(NotFoundError);
     });
 
     it("should throw NotFoundError if attempt belongs to another user", async () => {
       mockGetAttemptById.mockResolvedValue({ ...mockAttempt, user: "other-user" });
-      await expect(deleteExistingAttempt(attemptId, userId)).rejects.toThrow(NotFoundError);
+      await expect(deleteExistingAttempt(attemptIdStr, userId)).rejects.toThrow(NotFoundError);
     });
 
     it("should delete attempt if found and user matches", async () => {
       mockGetAttemptById.mockResolvedValue(mockAttempt);
       mockDeleteAttempt.mockResolvedValue(true);
 
-      await deleteExistingAttempt(attemptId, userId);
+      await deleteExistingAttempt(attemptIdStr, userId);
       expect(mockDeleteAttempt).toHaveBeenCalledWith(attemptId, userId);
     });
   });
@@ -84,18 +86,18 @@ describe("attemptService", () => {
   describe("completeExistingAttempt", () => {
     it("should throw NotFoundError if attempt does not exist", async () => {
       mockGetAttemptById.mockResolvedValue(null);
-      await expect(completeExistingAttempt(attemptId, userId)).rejects.toThrow(NotFoundError);
+      await expect(completeExistingAttempt(attemptIdStr, userId)).rejects.toThrow(NotFoundError);
     });
 
     it("should throw InvalidOperationError if attempt already completed", async () => {
       mockGetAttemptById.mockResolvedValue({ ...mockAttempt, completedAt: new Date() });
-      await expect(completeExistingAttempt(attemptId, userId)).rejects.toThrow(InvalidOperationError);
+      await expect(completeExistingAttempt(attemptIdStr, userId)).rejects.toThrow(InvalidOperationError);
     });
 
     it("should complete attempt if valid", async () => {
       mockGetAttemptById.mockResolvedValue(mockAttempt);
 
-      const result = await completeExistingAttempt(attemptId, userId);
+      const result = await completeExistingAttempt(attemptIdStr, userId);
 
       expect(result.completedAt).toBeDefined();
       expect(mockEditExistingAttempt).toHaveBeenCalledWith(attemptId, userId, expect.objectContaining({ completedAt: expect.any(Date) }));
