@@ -1,87 +1,115 @@
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
 import { createAttempt, getAttemptById, getAttemptBySurveyAndUser, editExistingAttempt as editExistingAttemptDb, deleteAttempt } from "../repositories/attemptRepository";
+import { ResultAsync, ok, err, fromPromise } from "neverthrow";
 
-export async function getExistingAttempt(surveyId: string, userId: string) {
-    const existingAttempt = await getAttemptBySurveyAndUser(surveyId, userId);
+// Helper to convert unknown error to Error
+const toError = (e: unknown) => e instanceof Error ? e : new Error(String(e));
 
-    if (!existingAttempt) {
-        throw new NotFoundError('Attempt not found');
-    }
+export function getExistingAttempt(surveyId: string, userId: string) {
+    return fromPromise(
+        getAttemptBySurveyAndUser(surveyId, userId),
+        toError
+    ).andThen(existingAttempt => {
+        if (!existingAttempt) {
+            return err(new NotFoundError('Attempt not found'));
+        }
 
-    if (existingAttempt.completedAt) {
-        return null;
-    }
+        if (existingAttempt.completedAt) {
+            return ok(null);
+        }
 
-    return {
-        id: existingAttempt._id.toString(),
-        survey: existingAttempt.survey,
-        startedAt: existingAttempt.startedAt
-    };
+        return ok({
+            id: existingAttempt._id.toString(),
+            survey: existingAttempt.survey,
+            startedAt: existingAttempt.startedAt
+        });
+    });
 }
 
-export async function createNewAttempt(surveyId: string, userId: string) {
-    const existingAttempt = await getAttemptBySurveyAndUser(surveyId, userId);
+export function createNewAttempt(surveyId: string, userId: string) {
+    return fromPromise(
+        getAttemptBySurveyAndUser(surveyId, userId),
+        toError
+    ).andThen(existingAttempt => {
+        if (existingAttempt && existingAttempt.completedAt) {
+            return ok({
+                id: existingAttempt._id.toString(),
+                survey: existingAttempt.survey,
+                startedAt: existingAttempt.startedAt
+            });
+        }
 
-    if (existingAttempt && existingAttempt.completedAt) {
-        return {
-        id: existingAttempt._id.toString(),
-        survey: existingAttempt.survey,
-        startedAt: existingAttempt.startedAt
-        };
-    }
-
-   const newAttemptId = await createAttempt(surveyId, userId);
-   const newAttempt = await getAttemptById(newAttemptId);
-
-   if (!newAttempt) {
-    throw new InvalidOperationError('Could not create attempt');
-   }
-
-    return {
-        id: newAttemptId.toString(),
-        survey: newAttempt.survey,
-        startedAt: newAttempt.startedAt
-    };
+        // If not completed or doesn't exist, create new
+        return fromPromise(
+            createAttempt(surveyId, userId),
+            toError
+        ).andThen(newAttemptId =>
+            fromPromise(
+                getAttemptById(newAttemptId),
+                toError
+            )
+        ).andThen(newAttempt => {
+            if (!newAttempt) {
+                return err(new InvalidOperationError('Could not create attempt'));
+            }
+            return ok({
+                id: newAttempt._id.toString(),
+                survey: newAttempt.survey,
+                startedAt: newAttempt.startedAt
+            });
+        });
+    });
 }
 
-export async function deleteExistingAttempt(attemptId: string, userId: string): Promise<boolean> {
-    const existingAttempt = await getAttemptById(attemptId);
-
-    if (!existingAttempt || existingAttempt.user.toString() !== userId) {
-        throw new NotFoundError('Attempt not found');
-    }
-    const deleteRes =  deleteAttempt(attemptId, userId);
-
-    if (!deleteRes) {
-        throw new InvalidOperationError('Could not delete attempt');
-    }
-
-    return true;
+export function deleteExistingAttempt(attemptId: string, userId: string) {
+    return fromPromise(
+        getAttemptById(attemptId),
+        toError
+    ).andThen(existingAttempt => {
+        if (!existingAttempt || existingAttempt.user.toString() !== userId) {
+            return err(new NotFoundError('Attempt not found'));
+        }
+        return ok(existingAttempt);
+    }).andThen(() =>
+        fromPromise(
+            deleteAttempt(attemptId, userId),
+            toError
+        )
+    ).andThen(deleteRes => {
+        if (!deleteRes) {
+            return err(new InvalidOperationError('Could not delete attempt'));
+        }
+        return ok(true);
+    });
 }
 
-export async function completeExistingAttempt(attemptId: string, userId: string) {
-    const existingAttempt = await getAttemptById(attemptId);
+export function completeExistingAttempt(attemptId: string, userId: string) {
+    return fromPromise(
+        getAttemptById(attemptId),
+        toError
+    ).andThen(existingAttempt => {
+        if (!existingAttempt) {
+            return err(new NotFoundError('Attempt not found'));
+        }
 
-    if (!existingAttempt) {
-        throw new NotFoundError('Attempt not found');
-    }
+        if (existingAttempt.completedAt) {
+            return err(new InvalidOperationError("Attempt already completed"));
+        }
 
-    if (existingAttempt?.completedAt) {
-        throw new InvalidOperationError("Attempt already completed");
-    }
+        if (existingAttempt.user.toString() !== userId) {
+            return err(new NotFoundError('Attempt not found'));
+        }
 
-    if (existingAttempt.user.toString() !== userId) {
-        throw new NotFoundError('Attempt not found');
-    }
-
-    existingAttempt.completedAt = new Date();
-    await editExistingAttemptDb(attemptId, userId, existingAttempt);
-
-    return {
-        id: existingAttempt._id.toString(),
-        survey: existingAttempt.survey,
-        startedAt: existingAttempt.startedAt,
-        completedAt: existingAttempt.completedAt
-    };
+        existingAttempt.completedAt = new Date();
+        return fromPromise(
+            editExistingAttemptDb(attemptId, userId, existingAttempt),
+            toError
+        ).map(() => ({
+            id: existingAttempt._id.toString(),
+            survey: existingAttempt.survey,
+            startedAt: existingAttempt.startedAt,
+            completedAt: existingAttempt.completedAt
+        }));
+    });
 }

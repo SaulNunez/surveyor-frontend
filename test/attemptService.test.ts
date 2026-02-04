@@ -12,13 +12,7 @@ describe("attemptService", () => {
   const attemptId = new ObjectId();
   const attemptIdStr = attemptId.toString();
 
-  const mockAttempt = {
-    _id: attemptId,
-    survey: surveyId,
-    user: userId,
-    startedAt: new Date(),
-    completedAt: undefined,
-  };
+  let mockAttempt: any;
 
   const mockGetAttemptBySurveyAndUser = attemptRepository.getAttemptBySurveyAndUser as jest.Mock;
   const mockCreateAttempt = attemptRepository.createAttempt as jest.Mock;
@@ -28,16 +22,24 @@ describe("attemptService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAttempt = {
+      _id: attemptId,
+      survey: surveyId,
+      user: userId,
+      startedAt: new Date(),
+      completedAt: undefined,
+    };
   });
 
   describe("createNewAttempt", () => {
     it("should create new attempt if no existing attempt", async () => {
       mockGetAttemptBySurveyAndUser.mockResolvedValue(null);
-      mockCreateAttempt.mockResolvedValue(mockAttempt);
+      mockCreateAttempt.mockResolvedValue(mockAttempt._id);
+      mockGetAttemptById.mockResolvedValue(mockAttempt);
 
       const result = await createNewAttempt(surveyId, userId);
-
-      expect(result.id).toBe(attemptId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().id).toBe(attemptIdStr);
       expect(mockCreateAttempt).toHaveBeenCalledWith(surveyId, userId);
     });
 
@@ -46,80 +48,110 @@ describe("attemptService", () => {
       mockGetAttemptBySurveyAndUser.mockResolvedValue(completedAttempt);
 
       const result = await createNewAttempt(surveyId, userId);
-
-      expect(result.id).toBe(attemptId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().id).toBe(attemptIdStr);
       expect(mockCreateAttempt).not.toHaveBeenCalled();
     });
 
     it("should create new attempt if existing attempt is not completed", async () => {
       // Based on current service logic: if existing attempt is NOT completed, it falls through to createAttempt
       mockGetAttemptBySurveyAndUser.mockResolvedValue(mockAttempt);
-      mockCreateAttempt.mockResolvedValue({ ...mockAttempt, _id: "new-id" });
+      // NOTE: The implementation actually creates a NEW attempt if the existing one is not completed? 
+      // Looking at the code: 
+      // if (existingAttempt && existingAttempt.completedAt) { return existing }
+      // ... createAttempt(surveyId, userId)
+      // So yes, if existing is not completed, it proceeds to create a new one (ignoring the active one?). 
+      // This seems like a potential logic bug in the original code, but I am refactoring, not fixing logic unless requested.
+      // Wait, if an attempt exists and is NOT completed, shouldn't we return it? 
+      // The original code fell through to createNewAttempt. 
+      // "const existingAttempt = await getAttemptBySurveyAndUser... if(existingAttempt && existingAttempt.completedAt) return ... const newAttemptId = awaiting createAttempt..."
+      // Yes, it duplicates attempts if one is active. I will preserve this behavior.
+
+      const newId = new ObjectId();
+      mockCreateAttempt.mockResolvedValue(newId);
+      mockGetAttemptById.mockResolvedValue({ ...mockAttempt, _id: newId });
 
       const result = await createNewAttempt(surveyId, userId);
 
-      expect(result.id).toBe("new-id");
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().id).toBe(newId.toString());
       expect(mockCreateAttempt).toHaveBeenCalledWith(surveyId, userId);
     });
   });
 
   describe("deleteExistingAttempt", () => {
-    it("should throw NotFoundError if attempt does not exist", async () => {
+    it("should return NotFoundError if attempt does not exist", async () => {
       mockGetAttemptById.mockResolvedValue(null);
-      await expect(deleteExistingAttempt(attemptIdStr, userId)).rejects.toThrow(NotFoundError);
+      const result = await deleteExistingAttempt(attemptIdStr, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
 
-    it("should throw NotFoundError if attempt belongs to another user", async () => {
+    it("should return NotFoundError if attempt belongs to another user", async () => {
       mockGetAttemptById.mockResolvedValue({ ...mockAttempt, user: "other-user" });
-      await expect(deleteExistingAttempt(attemptIdStr, userId)).rejects.toThrow(NotFoundError);
+      const result = await deleteExistingAttempt(attemptIdStr, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
 
     it("should delete attempt if found and user matches", async () => {
       mockGetAttemptById.mockResolvedValue(mockAttempt);
       mockDeleteAttempt.mockResolvedValue(true);
 
-      await deleteExistingAttempt(attemptIdStr, userId);
-      expect(mockDeleteAttempt).toHaveBeenCalledWith(attemptId, userId);
+      const result = await deleteExistingAttempt(attemptIdStr, userId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBe(true);
+      expect(mockDeleteAttempt).toHaveBeenCalledWith(attemptIdStr, userId);
     });
   });
 
   describe("completeExistingAttempt", () => {
-    it("should throw NotFoundError if attempt does not exist", async () => {
+    it("should return NotFoundError if attempt does not exist", async () => {
       mockGetAttemptById.mockResolvedValue(null);
-      await expect(completeExistingAttempt(attemptIdStr, userId)).rejects.toThrow(NotFoundError);
+      const result = await completeExistingAttempt(attemptIdStr, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
 
-    it("should throw InvalidOperationError if attempt already completed", async () => {
+    it("should return InvalidOperationError if attempt already completed", async () => {
       mockGetAttemptById.mockResolvedValue({ ...mockAttempt, completedAt: new Date() });
-      await expect(completeExistingAttempt(attemptIdStr, userId)).rejects.toThrow(InvalidOperationError);
+      const result = await completeExistingAttempt(attemptIdStr, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(InvalidOperationError);
     });
 
     it("should complete attempt if valid", async () => {
       mockGetAttemptById.mockResolvedValue(mockAttempt);
+      mockEditExistingAttempt.mockResolvedValue(true); // Assuming update returns success
 
       const result = await completeExistingAttempt(attemptIdStr, userId);
 
-      expect(result.completedAt).toBeDefined();
-      expect(mockEditExistingAttempt).toHaveBeenCalledWith(attemptId, userId, expect.objectContaining({ completedAt: expect.any(Date) }));
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().completedAt).toBeDefined();
+      expect(mockEditExistingAttempt).toHaveBeenCalledWith(attemptIdStr, userId, expect.objectContaining({ completedAt: expect.any(Date) }));
     });
   });
 
   describe("getExistingAttempt", () => {
-    it("should throw NotFoundError if no attempt found", async () => {
+    it("should return NotFoundError if no attempt found", async () => {
       mockGetAttemptBySurveyAndUser.mockResolvedValue(null);
-      await expect(getExistingAttempt(surveyId, userId)).rejects.toThrow(NotFoundError);
+      const result = await getExistingAttempt(surveyId, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
 
     it("should return null if attempt is completed", async () => {
       mockGetAttemptBySurveyAndUser.mockResolvedValue({ ...mockAttempt, completedAt: new Date() });
       const result = await getExistingAttempt(surveyId, userId);
-      expect(result).toBeNull();
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBeNull();
     });
 
     it("should return attempt if active", async () => {
       mockGetAttemptBySurveyAndUser.mockResolvedValue(mockAttempt);
       const result = await getExistingAttempt(surveyId, userId);
-      expect(result!.id).toBe(attemptId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()!.id).toBe(attemptIdStr);
     });
   });
 });
