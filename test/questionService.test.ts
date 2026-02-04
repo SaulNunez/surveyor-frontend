@@ -22,9 +22,11 @@ describe("questionService", () => {
 
   describe("createQuestion", () => {
     it("should create multiple-choice question", async () => {
+      mockCreateQuestion.mockResolvedValue("new-id");
       const input = { questionType: "multiple-choice", title: "MCQ", options: ["A", "B"] };
-      await createQuestion(surveyId, input as any);
+      const result = await createQuestion(surveyId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockCreateQuestion).toHaveBeenCalledWith(surveyId, {
         questionType: QuestionType.MULTIPLE_CHOICE,
         text: "MCQ",
@@ -33,9 +35,11 @@ describe("questionService", () => {
     });
 
     it("should create binary-choice question", async () => {
+      mockCreateQuestion.mockResolvedValue("new-id");
       const input = { questionType: "binary-choice", title: "Binary", positiveLabel: "Yes", negativeLabel: "No" };
-      await createQuestion(surveyId, input as any);
+      const result = await createQuestion(surveyId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockCreateQuestion).toHaveBeenCalledWith(surveyId, {
         questionType: QuestionType.BINARY_CHOICE,
         text: "Binary",
@@ -45,9 +49,11 @@ describe("questionService", () => {
     });
 
     it("should create likert-scale question", async () => {
+      mockCreateQuestion.mockResolvedValue("new-id");
       const input = { questionType: "likert-scale", title: "Likert", positiveLabel: "Good", negativeLabel: "Bad" };
-      await createQuestion(surveyId, input as any);
+      const result = await createQuestion(surveyId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockCreateQuestion).toHaveBeenCalledWith(surveyId, {
         questionType: QuestionType.LIKERT_SCALE,
         text: "Likert",
@@ -57,25 +63,31 @@ describe("questionService", () => {
     });
 
     it("should create open-ended question", async () => {
+      mockCreateQuestion.mockResolvedValue("new-id");
       const input = { questionType: "open-ended", title: "Open" };
-      await createQuestion(surveyId, input as any);
+      const result = await createQuestion(surveyId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockCreateQuestion).toHaveBeenCalledWith(surveyId, {
         questionType: QuestionType.OPEN_ENDED,
         text: "Open"
       });
     });
 
-    it("should throw Error for invalid question type", async () => {
+    it("should return Error for invalid question type", async () => {
       const input = { questionType: "invalid", title: "Test" };
-      await expect(createQuestion(surveyId, input as any)).rejects.toThrow("Invalid question type");
+      const result = await createQuestion(surveyId, input as any);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Invalid question type");
     });
   });
 
   describe("getQuestionsForSurvey", () => {
-    it("should throw Error if survey not found", async () => {
+    it("should return Error if survey not found", async () => {
       mockGetSurveyById.mockResolvedValue(null);
-      await expect(getQuestionsForSurvey(surveyId)).rejects.toThrow("Survey not found");
+      const result = await getQuestionsForSurvey(surveyId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Survey not found");
     });
 
     it("should return mapped questions", async () => {
@@ -90,35 +102,43 @@ describe("questionService", () => {
 
       const result = await getQuestionsForSurvey(surveyId);
 
-      expect(result).toHaveLength(4);
-      expect(result[0]).toEqual({ id: "1", questionType: "binary-choice", title: "Binary", positiveLabel: "Y", negativeLabel: "N" });
-      expect(result[1]).toEqual({ id: "2", questionType: "likert-scale", title: "Likert", positiveLabel: "G", negativeLabel: "B" });
-      expect(result[2]).toEqual({ id: "3", questionType: "multiple-choice", title: "MCQ", options: ["1", "2"] });
-      expect(result[3]).toEqual({ id: "4", questionType: "open-ended", title: "Open" });
+      expect(result.isOk()).toBe(true);
+      const questions = result._unsafeUnwrap();
+      expect(questions).toHaveLength(4);
+      expect(questions[0]).toEqual({ id: "1", questionType: "binary-choice", title: "Binary", positiveLabel: "Y", negativeLabel: "N" });
+      expect(questions[1]).toEqual({ id: "2", questionType: "likert-scale", title: "Likert", positiveLabel: "G", negativeLabel: "B" });
+      expect(questions[2]).toEqual({ id: "3", questionType: "multiple-choice", title: "MCQ", options: ["1", "2"] });
+      expect(questions[3]).toEqual({ id: "4", questionType: "open-ended", title: "Open" });
     });
 
-    it("should return null for unsupported question type in DB", async () => {
+    it("should return null (filtered out) for unsupported question type in DB", async () => {
       mockGetSurveyById.mockResolvedValue({
         questions: [{ _id: "5", questionType: "unknown" }]
       });
       const result = await getQuestionsForSurvey(surveyId);
-      expect(result).toEqual([null]);
+      expect(result.isOk()).toBe(true);
+      // Logic filters nulls, so array should be empty
+      expect(result._unsafeUnwrap()).toEqual([]);
     });
   });
 
   describe("editQuestion", () => {
-    it("should throw Error if question not found", async () => {
+    it("should return Error if question not found", async () => {
       mockGetQuestionById.mockResolvedValue(null);
-      await expect(editQuestion(surveyId, questionId, {} as any)).rejects.toThrow("Question not found");
+      const result = await editQuestion(surveyId, questionId, {} as any);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Question not found");
     });
 
     it("should edit multiple-choice question", async () => {
       const mockQ = { questionType: QuestionType.MULTIPLE_CHOICE, text: "Old", options: ["A"] };
       mockGetQuestionById.mockResolvedValue(mockQ);
+      mockUpdateQuestion.mockResolvedValue(true);
 
       const input = { questionType: "multiple-choice", title: "New Title", options: ["C"] };
-      await editQuestion(surveyId, questionId, input as any);
+      const result = await editQuestion(surveyId, questionId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockQ.text).toBe("New Title");
       expect(mockQ.options).toEqual(["C"]);
       expect(mockUpdateQuestion).toHaveBeenCalledWith(surveyId, questionId, mockQ);
@@ -127,10 +147,12 @@ describe("questionService", () => {
     it("should edit binary-choice question", async () => {
       const mockQ = { questionType: QuestionType.BINARY_CHOICE, text: "Old", positiveLabel: "Y", negativeLabel: "N" };
       mockGetQuestionById.mockResolvedValue(mockQ);
+      mockUpdateQuestion.mockResolvedValue(true);
 
       const input = { questionType: "binary-choice", title: "New Title", positiveLabel: "Y", negativeLabel: "N" };
-      await editQuestion(surveyId, questionId, input as any);
+      const result = await editQuestion(surveyId, questionId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockQ.text).toBe("New Title");
       expect(mockQ.positiveLabel).toBe("Y");
       expect(mockUpdateQuestion).toHaveBeenCalledWith(surveyId, questionId, mockQ);
@@ -139,10 +161,12 @@ describe("questionService", () => {
     it("should edit likert-scale question", async () => {
       const mockQ = { questionType: QuestionType.LIKERT_SCALE, text: "Old", positiveLabel: "G", negativeLabel: "B" };
       mockGetQuestionById.mockResolvedValue(mockQ);
+      mockUpdateQuestion.mockResolvedValue(true);
 
       const input = { questionType: "likert-scale", title: "New Title", positiveLabel: "G", negativeLabel: "B" };
-      await editQuestion(surveyId, questionId, input as any);
+      const result = await editQuestion(surveyId, questionId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockQ.text).toBe("New Title");
       expect(mockQ.positiveLabel).toBe("G");
       expect(mockUpdateQuestion).toHaveBeenCalledWith(surveyId, questionId, mockQ);
@@ -151,27 +175,32 @@ describe("questionService", () => {
     it("should edit open-ended question", async () => {
       const mockQ = { questionType: QuestionType.OPEN_ENDED, text: "Old" };
       mockGetQuestionById.mockResolvedValue(mockQ);
+      mockUpdateQuestion.mockResolvedValue(true);
 
       const input = { questionType: "open-ended", title: "New Title" };
-      await editQuestion(surveyId, questionId, input as any);
+      const result = await editQuestion(surveyId, questionId, input as any);
 
+      expect(result.isOk()).toBe(true);
       expect(mockQ.text).toBe("New Title");
       expect(mockUpdateQuestion).toHaveBeenCalledWith(surveyId, questionId, mockQ);
     });
 
-    it("should throw Error if question type mismatch", async () => {
+    it("should return Error if question type mismatch", async () => {
       const mockQ = { questionType: QuestionType.OPEN_ENDED };
       mockGetQuestionById.mockResolvedValue(mockQ);
 
       const input = { questionType: "multiple-choice" };
-      await expect(editQuestion(surveyId, questionId, input as any)).rejects.toThrow("Question type cannot be changed");
+      const result = await editQuestion(surveyId, questionId, input as any);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe("Question type cannot be changed");
     });
   });
 
   describe("deleteQuestion", () => {
     it("should delete question", async () => {
       mockDeleteQuestion.mockResolvedValue(true);
-      await deleteQuestion(surveyId, questionId);
+      const result = await deleteQuestion(surveyId, questionId);
+      expect(result.isOk()).toBe(true);
       expect(mockDeleteQuestion).toHaveBeenCalledWith(questionId, surveyId);
     });
   });

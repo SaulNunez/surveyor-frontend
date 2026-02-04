@@ -12,9 +12,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ surv
 
         return surveyResult.match(
             async (survey) => {
-                const questionsForSurvey = await getQuestionsForSurvey(surveyId);
-                const aggregatedSurvey = { ...survey, questions: questionsForSurvey };
-                return new Response(JSON.stringify(aggregatedSurvey), { status: 200 });
+                const questionsResult = await getQuestionsForSurvey(surveyId);
+                return questionsResult.match(
+                    (questionsForSurvey) => {
+                        const aggregatedSurvey = { ...survey, questions: questionsForSurvey };
+                        return new Response(JSON.stringify(aggregatedSurvey), { status: 200 });
+                    },
+                    (error) => {
+                        const message = error instanceof Error ? error.message : 'Unexpected exception'
+                        return new Response(message, { status: 500 });
+                    }
+                );
             },
             (error: Error) => {
                 if (error instanceof NotFoundError) {
