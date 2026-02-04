@@ -7,14 +7,14 @@ const ATTEMPTS_COLLECTION = 'attempts';
 export async function deleteAttempt(attemptId: string, userId: string) {
     const query = {
         _id: new ObjectId(attemptId),
-        user: userId 
+        user: userId
     };
     const result = await surveyorDb.collection<Attempt>(ATTEMPTS_COLLECTION).deleteOne(query);
     return result.deletedCount === 1;
 }
 
 export async function editExistingAttempt(attemptId: string, userId: string, attemptData: Attempt) {
-        const query = {
+    const query = {
         _id: new ObjectId(attemptId),
         user: userId
     };
@@ -23,7 +23,7 @@ export async function editExistingAttempt(attemptId: string, userId: string, att
 }
 
 export async function createAttempt(surveyId: string, userId: string) {
-    const attempt : Attempt = {
+    const attempt: Attempt = {
         survey: surveyId,
         user: userId,
         responses: [],
@@ -43,4 +43,13 @@ export async function getAttemptBySurveyAndUser(surveyId: string, userId: string
     const query = { survey: surveyId, user: userId };
     const attempt = await surveyorDb.collection<Attempt>(ATTEMPTS_COLLECTION).findOne(query);
     return attempt;
+}
+
+export async function getCompletedAttemptsBySurvey(surveyId: string) {
+    const query = {
+        survey: surveyId,
+        completedAt: { $exists: true }
+    };
+    const attempts = await surveyorDb.collection<Attempt>(ATTEMPTS_COLLECTION).find(query).toArray();
+    return attempts;
 }
