@@ -9,12 +9,11 @@ import dbConnect from "../lib/data";
 
 export default async function Dashboard() {
   await dbConnect();
-  const session  = await getServerSession(authOptions);
-  if(!session?.user?.email)
-  {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
     return (<p>User not logged in.</p>);
   }
-  const surveys = await getAllSurveysForUser(session.user.email);
+  const surveysResult = await getAllSurveysForUser(session.user.email);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
@@ -33,30 +32,34 @@ export default async function Dashboard() {
 
       {/* Survey List */}
       <div className="grid gap-4">
-        {surveys.length > 0 ? (
-          surveys.map((survey) => (
-            <div
-              key={survey.id}
-              className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-md transition flex items-center justify-between"
-            >
-              <div>
-                <h2 className="text-xl font-semibold text-gray-700 dark:text-white">
-                  {survey.title}
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Created on: {new Date(survey.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <Link
-                href={`/surveys/${survey.id}`}
-                className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+        {surveysResult.isOk() ? (
+          surveysResult.value.length > 0 ? (
+            surveysResult.value.map((survey) => (
+              <div
+                key={survey.id}
+                className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-md transition flex items-center justify-between"
               >
-                View Survey
-              </Link>
-            </div>
-          ))
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-700 dark:text-white">
+                    {survey.title}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Created on: {new Date(survey.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <Link
+                  href={`/surveys/${survey.id}`}
+                  className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                >
+                  View Survey
+                </Link>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No surveys available.</p>
+          )
         ) : (
-          <p className="text-gray-500">No surveys available.</p>
+          <p className="text-red-500">Error loading surveys: {surveysResult.error.message}</p>
         )}
       </div>
     </div>

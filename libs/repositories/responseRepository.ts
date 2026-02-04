@@ -31,7 +31,7 @@ export async function createResponse(attemptId: string, questionData: Response) 
     const data = {
         $push: {
             questions: questionData
-        } 
+        }
     };
     const result = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).updateOne(query, data);
 }
@@ -45,10 +45,9 @@ export async function getResponseById(responseId: string, attemptId: string) {
     return attempt;
 }
 
-export async function getResponseForQuestion(responseId: string, questionId: string) {
+export async function getResponseForQuestion(attemptId: string, questionId: string) {
     const query = {
-        question: questionId,
-        "responses._id": new ObjectId(responseId),
+        "questions.question": questionId,
         _id: new ObjectId(attemptId)
     };
     const attempt = await surveyorDb.collection<Response>(ATTEMPTS_COLLECTION).findOne(query);

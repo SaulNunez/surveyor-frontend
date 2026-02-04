@@ -30,8 +30,9 @@ describe("surveyService", () => {
       mockGetSurveysByUser.mockResolvedValue([mockSurvey]);
 
       const result = await getAllSurveysForUser(userId);
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(surveyId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toHaveLength(1);
+      expect(result._unsafeUnwrap()[0].id).toBe(surveyId);
       expect(mockGetSurveysByUser).toHaveBeenCalledWith(userId);
     });
   });
@@ -41,14 +42,17 @@ describe("surveyService", () => {
       mockGetSurveyById.mockResolvedValue(mockSurvey);
 
       const result = await getSurvey(surveyId);
-      expect(result.id).toBe(surveyId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().id).toBe(surveyId);
       expect(mockGetSurveyById).toHaveBeenCalledWith(surveyId);
     });
 
-    it("should throw NotFoundError if survey not found", async () => {
+    it("should return NotFoundError if survey not found", async () => {
       mockGetSurveyById.mockResolvedValue(null);
 
-      await expect(getSurvey(surveyId)).rejects.toThrow(NotFoundError);
+      const result = await getSurvey(surveyId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
   });
 
@@ -57,7 +61,8 @@ describe("surveyService", () => {
       mockCreateSurvey.mockResolvedValue(mockSurvey._id);
 
       const result = await createSurvey("Title", "Desc", userId);
-      expect(result.id).toBe(surveyId);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().id).toBe(surveyId);
       expect(mockCreateSurvey).toHaveBeenCalledWith(userId, "Title", "Desc");
     });
   });
@@ -68,21 +73,26 @@ describe("surveyService", () => {
       mockUpdateSurvey.mockResolvedValue({ ...mockSurvey, title: "New Title" });
 
       const result = await editSurvey(surveyId, userId, "New Title", "New Desc");
+      expect(result.isOk()).toBe(true);
       expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, userId, "New Title", "New Desc");
-      expect(result.title).toBe("New Title");
+      expect(result._unsafeUnwrap().title).toBe("New Title");
     });
 
-    it("should throw NotFoundError if survey not found", async () => {
+    it("should return NotFoundError if survey not found", async () => {
       mockGetSurveyById.mockResolvedValue(null);
 
-      await expect(editSurvey(surveyId, userId, "T", "D")).rejects.toThrow(NotFoundError);
+      const result = await editSurvey(surveyId, userId, "T", "D");
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
 
-    it("should throw NotFoundError if user does not match", async () => {
+    it("should return NotFoundError if user does not match", async () => {
       const otherUserSurvey = { ...mockSurvey, user: "other-user" };
       mockGetSurveyById.mockResolvedValue(otherUserSurvey);
 
-      await expect(editSurvey(surveyId, userId, "T", "D")).rejects.toThrow(NotFoundError);
+      const result = await editSurvey(surveyId, userId, "T", "D");
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
   });
 
@@ -92,21 +102,26 @@ describe("surveyService", () => {
       mockDeleteSurvey.mockResolvedValue(true);
 
       const result = await deleteSurvey(surveyId, userId);
-      expect(result).toBe(true);
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBe(true);
       expect(mockDeleteSurvey).toHaveBeenCalledWith(surveyId, userId);
     });
 
-    it("should throw NotFoundError if survey not found", async () => {
+    it("should return NotFoundError if survey not found", async () => {
       mockGetSurveyById.mockResolvedValue(null);
 
-      await expect(deleteSurvey(surveyId, userId)).rejects.toThrow(NotFoundError);
+      const result = await deleteSurvey(surveyId, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
 
-    it("should throw NotFoundError if user does not match", async () => {
+    it("should return NotFoundError if user does not match", async () => {
       const otherUserSurvey = { ...mockSurvey, user: "other-user" };
       mockGetSurveyById.mockResolvedValue(otherUserSurvey);
 
-      await expect(deleteSurvey(surveyId, userId)).rejects.toThrow(NotFoundError);
+      const result = await deleteSurvey(surveyId, userId);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
     });
   });
 });

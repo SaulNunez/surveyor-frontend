@@ -4,7 +4,7 @@ export enum QuestionType {
     BINARY_CHOICE = 'binary-choice',
     LIKERT_SCALE = 'likert-scale'
 }
-interface QuestionBase {
+export interface QuestionBase {
     text: string,
 }
 export interface OpenEndedQuestion extends QuestionBase {
