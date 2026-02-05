@@ -1,5 +1,7 @@
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
+import { Question, QuestionBase, QuestionType } from "../models/questionSchema";
+import { BinaryChoiceResult, LikertScaleResult, MultipleChoiceResult, OpenEndedResult } from "../models/resultSchema";
 import { createAttempt, getAttemptById, getAttemptBySurveyAndUser, editExistingAttempt as editExistingAttemptDb, deleteAttempt } from "../repositories/attemptRepository";
 import { ResultAsync, ok, err, fromPromise } from "neverthrow";
 
@@ -82,6 +84,46 @@ export function deleteExistingAttempt(attemptId: string, userId: string) {
         }
         return ok(true);
     });
+}
+
+function calculateResult(question: Question, answer: string) {
+    switch (question.questionType) {
+        case QuestionType.OPEN_ENDED:
+            return {
+                questionId: question._id!.toString(),
+                questionType: question.questionType,
+                representativeQuotes: [answer],
+                totalResponses: 1,
+                thematicTags: [],
+                createdAt: new Date(),
+                lastUpdated: new Date()
+            } as OpenEndedResult;
+        case QuestionType.MULTIPLE_CHOICE:
+            return {
+                questionId: question._id!.toString(),
+                questionType: question.questionType,
+                selectionSum: question.options.map((_, index) => answer === question.options[index] ? 1 : 0),
+                createdAt: new Date(),
+                lastUpdated: new Date()
+            } as MultipleChoiceResult;
+        case QuestionType.BINARY_CHOICE:
+            return {
+                questionId: question._id!.toString(),
+                questionType: question.questionType,
+                positiveSelectionSum: answer === question.positiveLabel ? 1 : 0,
+                negativeSelectionSum: answer === question.negativeLabel ? 1 : 0,
+                createdAt: new Date(),
+                lastUpdated: new Date()
+            } as BinaryChoiceResult;
+        case QuestionType.LIKERT_SCALE:
+            return {
+                questionId: question._id!.toString(),
+                questionType: question.questionType,
+                selectionSum: question.options.map((_, index) => answer === question.options[index] ? 1 : 0),
+                createdAt: new Date(),
+                lastUpdated: new Date()
+            } as LikertScaleResult;
+    }
 }
 
 export function completeExistingAttempt(attemptId: string, userId: string) {

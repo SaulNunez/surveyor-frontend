@@ -31,7 +31,8 @@ export function createQuestion(surveyId: string, questionData: QuestionInput) {
                 questionType: QuestionType.LIKERT_SCALE,
                 text: questionData.title,
                 positiveLabel: questionData.positiveLabel,
-                negativeLabel: questionData.negativeLabel
+                negativeLabel: questionData.negativeLabel,
+                options: ['1', '2', '3', '4', '5']
             });
             break;
         case 'open-ended':
