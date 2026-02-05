@@ -1,27 +1,27 @@
-import { QuestionType } from "./questionSchema"
+import { QuestionBase, QuestionType } from "./questionSchema"
 
-export interface QuestionBase {
+export interface ResultBase {
     questionId: string
 }
-export interface OpenEndedQuestion extends QuestionBase {
+export interface OpenEndedResult extends ResultBase {
     questionType: QuestionType.OPEN_ENDED
     representativeQuotes: string[],
     totalResponses: number,
     thematicTags: string[]
 }
 
-export interface MultipleChoiceQuestion extends QuestionBase {
+export interface MultipleChoiceResult extends ResultBase {
     selectionSum: number[],
     questionType: QuestionType.MULTIPLE_CHOICE
 }
 
-export interface BinaryChoiceQuestion extends QuestionBase {
+export interface BinaryChoiceResult extends ResultBase {
     positiveSelectionSum: number,
     negativeSelectionSum: number,
     questionType: QuestionType.BINARY_CHOICE
 }
 
-export interface LikertScaleQuestion extends QuestionBase {
+export interface LikertScaleResult extends ResultBase {
     selectionSum: number[],
     questionType: QuestionType.LIKERT_SCALE
 }
