@@ -1,6 +1,7 @@
 import { QuestionBase, QuestionType } from "./questionSchema"
+import { IDate } from "./shared"
 
-export interface ResultBase {
+export interface ResultBase extends IDate {
     questionId: string
 }
 export interface OpenEndedResult extends ResultBase {
