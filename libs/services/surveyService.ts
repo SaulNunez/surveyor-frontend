@@ -1,75 +1,92 @@
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { SurveyModel } from "../models/surveySchema";
+import * as surveyRepository from "../repositories/surveyRepository";
+import { ResultAsync, ok, err, fromPromise } from "neverthrow";
 
-export async function getAllSurveysForUser(userId: string) {
-    const surveys = await SurveyModel.find({user: userId}).exec();
+// Helper to convert unknown error to Error
+const toError = (e: unknown) => e instanceof Error ? e : new Error(String(e));
 
-    return surveys.map(survey => ({
-        id: survey._id,
+export function getAllSurveysForUser(userId: string) {
+    return fromPromise(
+        surveyRepository.getSurveysByUser(userId),
+        toError
+    ).map(surveys => surveys.map(survey => ({
+        id: survey._id.toString(),
         title: survey.title,
         description: survey.description,
         createdAt: survey.createdAt
+    })));
+}
+
+export function getSurvey(surveyId: string) {
+    return fromPromise(
+        surveyRepository.getSurveyById(surveyId),
+        toError
+    ).andThen((survey) => {
+        if (!survey) {
+            return err(new NotFoundError('Survey not found'));
+        }
+        return ok({
+            id: survey._id.toString(),
+            title: survey.title,
+            description: survey.description,
+            createdAt: survey.createdAt
+        });
+    });
+}
+
+export function createSurvey(title: string, description: string, userId: string) {
+    return fromPromise(
+        surveyRepository.createSurvey(userId, title, description),
+        toError
+    ).map(newSurveyId => ({
+        id: newSurveyId,
+        title: title,
+        description: description
     }));
 }
 
-export async function getSurvey(surveyId: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
-
-    if(!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    return {
-        id: survey._id,
-        title: survey.title,
-        description: survey.description,
-        createdAt: survey.createdAt
-    }
+export function editSurvey(surveyId: string, userId: string, title: string, description: string) {
+    // We can chain the logic: getSurvey -> check ownership -> update
+    return fromPromise(
+        surveyRepository.getSurveyById(surveyId),
+        toError
+    ).andThen(survey => {
+        if (!survey) {
+            return err(new NotFoundError('Survey not found'));
+        }
+        if (survey.user.toString() !== userId) {
+            // Original code threw NotFoundError for unauthorized access too, keeping consistent
+            return err(new NotFoundError('Survey not found'));
+        }
+        return ok(survey);
+    }).andThen(() =>
+        fromPromise(
+            surveyRepository.updateSurvey(surveyId, userId, title, description),
+            toError
+        )
+    ).map((updatedSurvey) => ({
+        id: surveyId,
+        title: updatedSurvey.title,
+        description: updatedSurvey.description
+    }));
 }
 
-export async function createSurvey(title: string, description: string, userId: string) {
-    const survey = await SurveyModel.create({ title, description, user: userId });
-
-    return {
-        id: survey._id,
-        title: survey.title,
-        description: survey.description
-    }
-}
-
-export async function editSurvey(surveyId: string, userId: string, title: string, description: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
-
-    if(!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    if(survey.user.toString() !== userId) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    survey.title = title;
-    survey.description = description;
-
-    await survey.save();
-    return {
-        id: survey._id,
-        title: survey.title,
-        description: survey.description
-    }
-}
-
-export async function deleteSurvey(surveyId: string, userId: string) {
-    const survey = await SurveyModel.findById(surveyId).exec();
-
-    if(!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    if(survey.user.toString() !== userId) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    await SurveyModel.deleteOne({ _id: surveyId }).exec();
-    return true;
+export function deleteSurvey(surveyId: string, userId: string) {
+    return fromPromise(
+        surveyRepository.getSurveyById(surveyId),
+        toError
+    ).andThen(survey => {
+        if (!survey) {
+            return err(new NotFoundError('Survey not found'));
+        }
+        if (survey.user.toString() !== userId) {
+            return err(new NotFoundError('Survey not found'));
+        }
+        return ok(survey);
+    }).andThen(() =>
+        fromPromise(
+            surveyRepository.deleteSurvey(surveyId, userId),
+            toError
+        )
+    );
 }

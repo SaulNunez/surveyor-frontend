@@ -1,5 +1,4 @@
-import { getDiscriminatorModelForClass, getModelForClass, modelOptions, prop } from "@typegoose/typegoose";
-import { v4 as uuidv4 } from 'uuid';
+import { OpenEndedResult, MultipleChoiceResult, BinaryChoiceResult, LikertScaleResult } from "./resultSchema";
 
 export enum QuestionType {
     OPEN_ENDED = 'open-ended',
@@ -7,46 +6,37 @@ export enum QuestionType {
     BINARY_CHOICE = 'binary-choice',
     LIKERT_SCALE = 'likert-scale'
 }
+import { ObjectId } from "mongodb";
 
-@modelOptions({
-  schemaOptions: {
-    discriminatorKey: 'questionType',
-  },
-})
-export class Question {
-    @prop({ required: true, default: () => uuidv4() })
-    public _id!: string;
-
-    @prop({ required: true })
-    public text!: string;
-
-    @prop({ required: true })
-    public questionType!: string;
+export interface QuestionBase {
+    _id?: ObjectId,
+    text: string,
+    questionType: QuestionType
+}
+export interface OpenEndedQuestion extends QuestionBase {
+    questionType: QuestionType.OPEN_ENDED,
+    results?: OpenEndedResult
 }
 
-export const QuestionModel = getModelForClass(Question);
-export class OpenEndedQuestion extends Question {
+export interface MultipleChoiceQuestion extends QuestionBase {
+    options: string[],
+    questionType: QuestionType.MULTIPLE_CHOICE,
+    results?: MultipleChoiceResult
 }
 
-export const OpenEndedQuestionModel = getDiscriminatorModelForClass(QuestionModel, OpenEndedQuestion, QuestionType.OPEN_ENDED);
-export class MultipleChoiceQuestion extends Question {
-    @prop({ required: true })
-    public options!: string[];
+export interface BinaryChoiceQuestion extends QuestionBase {
+    positiveLabel: string,
+    negativeLabel: string,
+    questionType: QuestionType.BINARY_CHOICE,
+    results?: BinaryChoiceResult
 }
-export const MultipleChoiceQuestionModel = getDiscriminatorModelForClass(QuestionModel, MultipleChoiceQuestion, QuestionType.MULTIPLE_CHOICE);
-export class BinaryChoiceQuestion extends Question {
-    @prop({ required: true })
-    public positiveLabel!: string;
 
-    @prop({ required: true })
-    public negativeLabel!: string;
+export interface LikertScaleQuestion extends QuestionBase {
+    positiveLabel: string,
+    negativeLabel: string,
+    options: string[],
+    questionType: QuestionType.LIKERT_SCALE,
+    results?: LikertScaleResult
 }
-export const BinaryChoiceQuestionModel = getDiscriminatorModelForClass(QuestionModel, BinaryChoiceQuestion, QuestionType.BINARY_CHOICE);
-export class LikertScaleQuestion extends Question {
-    @prop({ required: true })
-    public positiveLabel!: string;
-    
-    @prop({ required: true })
-    public negativeLabel!: string;
-}
-export const LikertScaleQuestionModel = getDiscriminatorModelForClass(QuestionModel, LikertScaleQuestion, QuestionType.LIKERT_SCALE);
+
+export type Question = OpenEndedQuestion | MultipleChoiceQuestion | BinaryChoiceQuestion | LikertScaleQuestion;

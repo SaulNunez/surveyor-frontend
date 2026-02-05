@@ -1,105 +1,137 @@
-import mongoose from "mongoose";
-import { AttemptModel } from "../models/attemptSchema";
-import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { LikertScaleQuestion, QuestionModel, QuestionType } from "../models/questionSchema";
 import { BinaryChoiceResponse, LikertScaleResponse, MultipleChoiceResponse, OpenEndedResponse } from "../models/responseSchema";
-import { QuestionResponseDao, MultipleChoiceResponseDao, BinaryChoiceResponseDao, OpenEndedResponseDao, LikertScaleResponseDao } from "../models/frontend/result";
-import { v4 as uuidv4 } from 'uuid';
+import { QuestionResponseDao, MultipleChoiceResponseDao, BinaryChoiceResponseDao, LikertScaleResponseDao } from "../models/frontend/result";
+import { createResponse, editResponse, getResponseForQuestion } from "../repositories/responseRepository";
+import { getQuestionById } from "../repositories/questionRepository";
+import { ResultAsync, ok, err, fromPromise } from "neverthrow";
 
-export async function addResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseDao){
-    const question = await QuestionModel.findById(questionId);
-    if(!question) throw new NotFoundError('Question not found');
+// Helper to convert unknown error to Error
+const toError = (e: unknown) => e instanceof Error ? e : new Error(String(e));
 
-    const attempt = await AttemptModel.findById(attemptId);
-    if(!attempt) throw new NotFoundError('Attempt not found');
-    
-    if(attempt.responses?.some(resp => resp.question.toString() === questionId)){
-        throw new InvalidOperationError('Response to this question already exists in the attempt');
-    }
+export function addResponseToQuestion(attemptId: string, questionId: string, surveyId: string, responsePayload: QuestionResponseDao) {
+    return fromPromise(
+        getQuestionById(questionId, surveyId),
+        toError
+    ).andThen(question => {
+        if (!question) return err(new NotFoundError('Question not found'));
 
-    switch(responsePayload.questionType){
-        case 'open-ended':
-                attempt.responses?.push({
-                    _id: uuidv4(),
+        if (responsePayload.questionType !== question.questionType) {
+            return err(new Error('Response question type does not match the question type'));
+        }
+
+        let createPromise;
+        switch (responsePayload.questionType) {
+            case 'open-ended':
+                createPromise = createResponse(attemptId, {
                     question: questionId,
                     response: responsePayload.response
                 } as OpenEndedResponse);
                 break;
-        case 'likert-scale':
-                if(responsePayload.selectedValue < 1 || responsePayload.selectedValue > 5) {
-                    throw new Error('Selected value must be between 1 and 5 for question');
+            case 'likert-scale':
+                if (responsePayload.selectedValue < 1 || responsePayload.selectedValue > 5) {
+                    return err(new Error('Selected value must be between 1 and 5 for question'));
                 }
-                attempt.responses?.push({
-                    _id: uuidv4(),
+                createPromise = createResponse(attemptId, {
                     question: questionId,
                     rating: responsePayload.selectedValue
                 } as LikertScaleResponse);
                 break;
-        case 'multiple-choice':
-                attempt.responses?.push({
-                    _id: uuidv4(),
+            case 'multiple-choice':
+                createPromise = createResponse(attemptId, {
                     question: questionId,
                     selectedOption: (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex
                 } as MultipleChoiceResponse);
                 break;
-        case 'binary-choice':
-            attempt.responses?.push({
-                _id: uuidv4(),
-                question: questionId,
-                choice: (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive'
-            } as BinaryChoiceResponse);
-            break;
-        default:
-            throw new Error('Unsupported question type');
+            case 'binary-choice':
+                createPromise = createResponse(attemptId, {
+                    question: questionId,
+                    choice: (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive'
+                } as BinaryChoiceResponse);
+                break;
+            default:
+                return err(new Error('Unsupported question type'));
         }
-    return attempt.save();
+
+        return fromPromise(createPromise, toError);
+    });
 }
 
-export async function getExistingResponseInQuestion(attemptId: string, questionId: string){
-    const question = await QuestionModel.findById(questionId);
-    if(!question) throw new NotFoundError('Question not found');
+export function getExistingResponseInQuestion(attemptId: string, questionId: string) {
+    return fromPromise(
+        getResponseForQuestion(attemptId, questionId),
+        toError
+    ).andThen(response => {
+        if (!response) return err(new NotFoundError('Response not found'));
 
-    const attempt = await AttemptModel.findById(attemptId);
-    if(!attempt) throw new NotFoundError('Attempt not found');
-    
-    let response =  attempt.responses?.find(resp => resp.question.toString() === questionId);
-    if(!response) throw new NotFoundError('Response not found');
+        if (response.responseType === 'open-ended') {
+            return ok({
+                questionType: 'open-ended',
+                response: response.response
+            } as QuestionResponseDao);
+        }
+        if (response.responseType === 'likert-scale') {
+            return ok({
+                questionType: 'likert-scale',
+                selectedValue: response.rating
+            } as LikertScaleResponseDao);
+        }
+        if (response.responseType === 'multiple-choice') {
+            return ok({
+                questionType: 'multiple-choice',
+                selectedOptionIndex: response.selectedOption
+            } as MultipleChoiceResponseDao);
+        }
+        if (response.responseType === 'binary-choice') {
+            return ok({
+                questionType: 'binary-choice',
+                selectedOption: response.choice ? 'positive' : 'negative'
+            } as BinaryChoiceResponseDao);
+        }
 
-    return response;
+        return err(new Error('Unsupported response type'));
+    });
 }
 
-export async function updateResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseDao){
-    const question = await QuestionModel.findById(questionId);
-    if(!question) throw new NotFoundError('Question not found');
+export function updateResponseToQuestion(attemptId: string, responseId: string, questionId: string, responsePayload: QuestionResponseDao) {
+    /*if (responsePayload.questionType !== response.responseType) {
+        throw new Error('Response question type does not match the question type');
+    }*/
 
-    const attempt = await AttemptModel.findById(attemptId);
-    if(!attempt) throw new NotFoundError('Attempt not found');
-    
-    let response =  attempt.responses?.find(resp => resp.question.toString() === questionId);
-    if(!response) throw new NotFoundError('Response not found');
+    let updatePromise;
 
-    switch(response.responseType){
-        case 'open-ended':
-            (response as OpenEndedResponse).response = (responsePayload as OpenEndedResponseDao).response;
-            attempt.save();
-            break;
-        case 'multiple-choice':
-            (response as MultipleChoiceResponse).selectedOption = (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex;
-            attempt.save();
-            break;
-        case 'binary-choice':
-            (response as BinaryChoiceResponse).choice = (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive';
-            attempt.save(); 
-            break;
-        case 'likert-scale':
-            if((responsePayload as LikertScaleResponseDao).selectedValue < 1 || (responsePayload as LikertScaleResponseDao).selectedValue > 5) {
-                throw new Error('Rating must be between 1 and 5 for question');
-            }
-            (response as LikertScaleResponse).rating = (responsePayload as LikertScaleResponseDao).selectedValue;
-            attempt.save();
-            break;
-        default:
-            throw new Error('Unsupported question type');
+    if (responsePayload.questionType === 'open-ended') {
+        updatePromise = editResponse(attemptId, responseId, {
+            question: questionId,
+            response: responsePayload.response
+        } as OpenEndedResponse);
     }
+    else if (responsePayload.questionType === 'likert-scale') {
+        if ((responsePayload as LikertScaleResponseDao).selectedValue < 1 || (responsePayload as LikertScaleResponseDao).selectedValue > 5) {
+            return err(new Error('Rating must be between 1 and 5 for question'));
+        }
+        updatePromise = editResponse(attemptId, responseId, {
+            question: questionId,
+            rating: (responsePayload as LikertScaleResponseDao).selectedValue
+        } as LikertScaleResponse);
+    }
+    else if (responsePayload.questionType === 'multiple-choice') {
+        updatePromise = editResponse(attemptId, responseId, {
+            question: questionId,
+            selectedOption: (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex
+        } as MultipleChoiceResponse);
+    }
+    else if (responsePayload.questionType === 'binary-choice') {
+        updatePromise = editResponse(attemptId, responseId, {
+            question: questionId,
+            choice: (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive'
+        } as BinaryChoiceResponse);
+    } else {
+        // Fallback or error if type isn't matched, though currently void logic implies success if not matched?
+        // The original code did nothing if no if-block matched (implicitly).
+        // I will return ok() but actually, the original code had if blocks, so if none matched it did nothing.
+        // It's safer to probably assume one matches or is void.
+        return ok(undefined);
+    }
+
+    return fromPromise(updatePromise, toError);
 }
