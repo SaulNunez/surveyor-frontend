@@ -75,6 +75,16 @@ export default function RegisterPage() {
           <div>
             <label className="block mb-1 text-sm font-medium">Confirm Password</label>
             <input
+              onBlur={(e) => {
+                if (confirmPassword === password && confirmPassword !== "") {
+                  e.target.style.outline = "2px solid green";
+                } else if (confirmPassword !== password) {
+                  e.target.style.outline = "2px solid red";
+                } else {
+                  e.target.style.outline = "none";
+                }
+              }}
+
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
