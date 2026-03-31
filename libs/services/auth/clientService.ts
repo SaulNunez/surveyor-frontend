@@ -1,26 +1,31 @@
-import { ClientModel } from "../../models/auth/clientSchema";
+import { ObjectId } from "mongodb";
+import { Client } from "../../models/auth/clientSchema";
 import { ClientInputDao } from "../../models/auth/dao/clientCreationModel";
+import bcrypt from "bcrypt";
+import { addNewClient } from "@/libs/repositories/auth/clientRepository";
 const crypto = require('crypto');
 
 export async function createClient(clientDao: ClientInputDao, userId: string) {
-    const clientId = generateRandomString(16);
     const clientSecret = generateSecureRandomString(32);
     
-    const client = new ClientModel({
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(clientSecret, salt);
+
+    const client: Client = {
         clientName: clientDao.clientName,
         clientDescription: clientDao.clientDescription,
-        _id: clientId,
-        clientSecret,
+        clientSecret: hash,
         redirectUris: clientDao.redirectUris ?? [],
-        user: userId
-    });
-    await client.save();
+        user: new ObjectId(userId)
+    };
+
+    const clientId = await addNewClient(client);
 
     return {
         clientName: client.clientName,
         clientDescription: client.clientDescription,
         redirectUris: client.redirectUris,
-        clientId: client._id,
+        clientId: clientId,
         clientSecret
     };
 }

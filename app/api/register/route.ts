@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/data";
 import { createUser } from "@/libs/services/auth/userService";
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
     await dbConnect();
     try {
         const body = await request.json();

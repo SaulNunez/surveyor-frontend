@@ -29,13 +29,13 @@ export const authOptions = {
                     throw new Error('Invalid credentials');
                 }
 
-                const isMatch = bcrypt.compare(credentials.password, user.password);
+                const isMatch = bcrypt.compare(credentials.password, user.hash);
                 if (!isMatch) {
                     throw new Error('Invalid credentials');
                 }
 
                 return {
-                    id: user.id,
+                    id: user._id.toString(),
                     email: user.email
                 };
             },

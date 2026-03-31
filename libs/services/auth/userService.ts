@@ -1,24 +1,15 @@
+import { addUserAccount, findUserByEmail } from "@/libs/repositories/userRepository";
 import { UserInputDao } from "../../models/auth/dao/userCreationModel";
-import { UserModel } from "../../models/auth/userSchema";
+import bcrypt from "bcrypt";
 
 export async function createUser({ email, password }: UserInputDao) {
-    try {
-        const user = new UserModel({
-            username: email,
-            password: password
-        });
-        await user.save();
-    } catch (err) {
-       console.error(err);
-        throw err;
-    }
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+    
+    return addUserAccount({ email, hash });
 }
 
 export async function getUserByEmail(email: string) {
-    try {
-        const user = await UserModel.findOne({ email }).exec();
-        return user;
-    } catch (err) {
-        throw err;
-    }
+    const user = await findUserByEmail(email);
+    return user;
 }
