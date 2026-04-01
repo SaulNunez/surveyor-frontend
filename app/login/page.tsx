@@ -1,4 +1,6 @@
 "use client"
+import { signIn } from "next-auth/react";
+import Link from "next/link";
 import React, { useState } from "react";
 
 export default function LoginPage() {
@@ -7,8 +9,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Login with:", { email, password });
-    alert("Logged in! Check console for credentials.");
+    signIn("email", { email })
   };
 
   return (
@@ -29,25 +30,20 @@ export default function LoginPage() {
               placeholder="you@example.com"
             />
           </div>
-
-          <div>
-            <label className="block mb-1 text-sm font-medium">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-              placeholder="••••••••"
-            />
-          </div>
-
           <button
             type="submit"
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Sign In
           </button>
+          <div className="mt-3 text-center">
+            <Link
+              href="/register"
+              className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Register
+            </Link>
+          </div>
         </form>
       </div>
     </div>
