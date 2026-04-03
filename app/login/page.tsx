@@ -9,7 +9,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    signIn("email", { email })
+    signIn("email", { email, callbackUrl: "/surveys" });
   };
 
   return (

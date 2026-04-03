@@ -37,7 +37,7 @@ export default function RegisterPage() {
       return;
     }
     surveyMutation.mutate({email, password}, {
-      onSuccess: () => router.replace("auth/signin")
+      onSuccess: () => router.replace("/login")
     });
   };
 
