@@ -1,4 +1,4 @@
-import { addUserAccount, findUserByEmail } from "@/libs/repositories/userRepository";
+import { addUserAccount, findUserByEmail, updateUserInformation } from "@/libs/repositories/userRepository";
 import { UserInputDao } from "../../models/auth/dao/userCreationModel";
 import bcrypt from "bcrypt";
 
@@ -12,4 +12,8 @@ export async function createUser({ email, password }: UserInputDao) {
 export async function getUserByEmail(email: string) {
     const user = await findUserByEmail(email);
     return user;
+}
+
+export async function updateUserName(userId: string, displayName: string) {
+    return await updateUserInformation(userId, displayName);
 }

@@ -1,5 +1,6 @@
 
 export interface User {
     email: string,
-    hash: string
+    hash: string,
+    displayName?: string,
 }

@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { User } from "../models/auth/userSchema";
 import { surveyorDb } from "./database";
 import { v4 as uuidv4 } from 'uuid';
@@ -13,4 +14,10 @@ export async function findUserByEmail(email: string) {
     const query = { email: email };
     const user = await surveyorDb.collection<User>(USER_COLLECTION).findOne(query);
     return user;
+}
+
+export async function updateUserInformation(id: string, displayName: string) {
+    const query = { _id: new ObjectId(id) };
+    const update = { $set: { displayName: displayName } };
+    await surveyorDb.collection<User>(USER_COLLECTION).updateOne(query, update);
 }
