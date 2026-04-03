@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { ChangeDisplayNameForm } from "./_components/ChangeDisplayNameForm";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 
 export default async function Settings() {
-  const session = await getServerSession();
+  const session = await auth();
   const user = session?.user;
   if (!user) {
     redirect("/login");

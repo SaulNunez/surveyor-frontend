@@ -1,12 +1,11 @@
 import { createSurvey } from "@/libs/services/surveyService";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]";
 import { SurveyInput } from "@/libs/models/frontend/survey";
 import dbConnect from "@/app/lib/data";
+import { auth } from "@/auth";
 
 export async function POST(request: Request) {
     await dbConnect();
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     try {
         const body: SurveyInput = await request.json();
