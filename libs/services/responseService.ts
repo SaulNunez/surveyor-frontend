@@ -1,137 +1,138 @@
+import { db } from "../db";
+import { responses, attempts, questions } from "../db/schema";
+import { eq, and } from "drizzle-orm";
+import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { BinaryChoiceResponse, LikertScaleResponse, MultipleChoiceResponse, OpenEndedResponse } from "../models/responseSchema";
-import { QuestionResponseDao, MultipleChoiceResponseDao, BinaryChoiceResponseDao, LikertScaleResponseDao } from "../models/frontend/result";
-import { createResponse, editResponse, getResponseForQuestion } from "../repositories/responseRepository";
-import { getQuestionById } from "../repositories/questionRepository";
-import { ResultAsync, ok, err, fromPromise } from "neverthrow";
+import { QuestionResponseDao, MultipleChoiceResponseDao, BinaryChoiceResponseDao, OpenEndedResponseDao, LikertScaleResponseDao } from "../models/frontend/result";
 
-// Helper to convert unknown error to Error
-const toError = (e: unknown) => e instanceof Error ? e : new Error(String(e));
+export async function addResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseDao){
+    const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
+    if(questionResults.length === 0) throw new NotFoundError('Question not found');
 
-export function addResponseToQuestion(attemptId: string, questionId: string, surveyId: string, responsePayload: QuestionResponseDao) {
-    return fromPromise(
-        getQuestionById(questionId, surveyId),
-        toError
-    ).andThen(question => {
-        if (!question) return err(new NotFoundError('Question not found'));
+    const attemptResults = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+    if(attemptResults.length === 0) throw new NotFoundError('Attempt not found');
+    
+    const existingResponseResults = await db.select()
+        .from(responses)
+        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
+        .limit(1);
+    
+    if(existingResponseResults.length > 0){
+        throw new InvalidOperationError('Response to this question already exists in the attempt');
+    }
 
-        if (responsePayload.questionType !== question.questionType) {
-            return err(new Error('Response question type does not match the question type'));
-        }
+    const insertValues: any = {
+        attemptId,
+        questionId,
+        responseType: responsePayload.questionType
+    };
 
-        let createPromise;
-        switch (responsePayload.questionType) {
-            case 'open-ended':
-                createPromise = createResponse(attemptId, {
-                    question: questionId,
-                    response: responsePayload.response
-                } as OpenEndedResponse);
-                break;
-            case 'likert-scale':
-                if (responsePayload.selectedValue < 1 || responsePayload.selectedValue > 5) {
-                    return err(new Error('Selected value must be between 1 and 5 for question'));
-                }
-                createPromise = createResponse(attemptId, {
-                    question: questionId,
-                    rating: responsePayload.selectedValue
-                } as LikertScaleResponse);
-                break;
-            case 'multiple-choice':
-                createPromise = createResponse(attemptId, {
-                    question: questionId,
-                    selectedOption: (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex
-                } as MultipleChoiceResponse);
-                break;
-            case 'binary-choice':
-                createPromise = createResponse(attemptId, {
-                    question: questionId,
-                    choice: (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive'
-                } as BinaryChoiceResponse);
-                break;
-            default:
-                return err(new Error('Unsupported question type'));
-        }
+    switch(responsePayload.questionType){
+        case 'open-ended':
+            insertValues.response = (responsePayload as OpenEndedResponseDao).response;
+            break;
+        case 'likert-scale':
+            const rating = (responsePayload as LikertScaleResponseDao).selectedValue;
+            if(rating < 1 || rating > 5) {
+                throw new Error('Selected value must be between 1 and 5 for question');
+            }
+            insertValues.rating = rating;
+            break;
+        case 'multiple-choice':
+            insertValues.selectedOption = (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex;
+            break;
+        case 'binary-choice':
+            insertValues.choice = (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive';
+            break;
+        default:
+            throw new Error('Unsupported question type');
+    }
 
-        return fromPromise(createPromise, toError);
-    });
+    await db.insert(responses).values(insertValues);
+
+    const attempt = attemptResults[0];
+    const attemptResponses = await db.select().from(responses).where(eq(responses.attemptId, attemptId));
+
+    return {
+        ...attempt,
+        _id: attempt.id,
+        responses: attemptResponses.map(r => ({
+            ...r,
+            _id: r.id,
+            question: r.questionId,
+        }))
+    };
 }
 
-export function getExistingResponseInQuestion(attemptId: string, questionId: string) {
-    return fromPromise(
-        getResponseForQuestion(attemptId, questionId),
-        toError
-    ).andThen(response => {
-        if (!response) return err(new NotFoundError('Response not found'));
+export async function getExistingResponseInQuestion(attemptId: string, questionId: string){
+    const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
+    if(questionResults.length === 0) throw new NotFoundError('Question not found');
 
-        if (response.responseType === 'open-ended') {
-            return ok({
-                questionType: 'open-ended',
-                response: response.response
-            } as QuestionResponseDao);
-        }
-        if (response.responseType === 'likert-scale') {
-            return ok({
-                questionType: 'likert-scale',
-                selectedValue: response.rating
-            } as LikertScaleResponseDao);
-        }
-        if (response.responseType === 'multiple-choice') {
-            return ok({
-                questionType: 'multiple-choice',
-                selectedOptionIndex: response.selectedOption
-            } as MultipleChoiceResponseDao);
-        }
-        if (response.responseType === 'binary-choice') {
-            return ok({
-                questionType: 'binary-choice',
-                selectedOption: response.choice ? 'positive' : 'negative'
-            } as BinaryChoiceResponseDao);
-        }
+    const attemptResults = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+    if(attemptResults.length === 0) throw new NotFoundError('Attempt not found');
+    
+    const results = await db.select()
+        .from(responses)
+        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
+        .limit(1);
 
-        return err(new Error('Unsupported response type'));
-    });
+    if(results.length === 0) throw new NotFoundError('Response not found');
+
+    const response = results[0];
+    return {
+        ...response,
+        _id: response.id,
+        question: response.questionId
+    };
 }
 
-export function updateResponseToQuestion(attemptId: string, responseId: string, questionId: string, responsePayload: QuestionResponseDao) {
-    /*if (responsePayload.questionType !== response.responseType) {
-        throw new Error('Response question type does not match the question type');
-    }*/
+export async function updateResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseDao){
+    const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
+    if(questionResults.length === 0) throw new NotFoundError('Question not found');
 
-    let updatePromise;
+    const attemptResults = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+    if(attemptResults.length === 0) throw new NotFoundError('Attempt not found');
+    
+    const results = await db.select()
+        .from(responses)
+        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
+        .limit(1);
 
-    if (responsePayload.questionType === 'open-ended') {
-        updatePromise = editResponse(attemptId, responseId, {
-            question: questionId,
-            response: responsePayload.response
-        } as OpenEndedResponse);
-    }
-    else if (responsePayload.questionType === 'likert-scale') {
-        if ((responsePayload as LikertScaleResponseDao).selectedValue < 1 || (responsePayload as LikertScaleResponseDao).selectedValue > 5) {
-            return err(new Error('Rating must be between 1 and 5 for question'));
-        }
-        updatePromise = editResponse(attemptId, responseId, {
-            question: questionId,
-            rating: (responsePayload as LikertScaleResponseDao).selectedValue
-        } as LikertScaleResponse);
-    }
-    else if (responsePayload.questionType === 'multiple-choice') {
-        updatePromise = editResponse(attemptId, responseId, {
-            question: questionId,
-            selectedOption: (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex
-        } as MultipleChoiceResponse);
-    }
-    else if (responsePayload.questionType === 'binary-choice') {
-        updatePromise = editResponse(attemptId, responseId, {
-            question: questionId,
-            choice: (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive'
-        } as BinaryChoiceResponse);
-    } else {
-        // Fallback or error if type isn't matched, though currently void logic implies success if not matched?
-        // The original code did nothing if no if-block matched (implicitly).
-        // I will return ok() but actually, the original code had if blocks, so if none matched it did nothing.
-        // It's safer to probably assume one matches or is void.
-        return ok(undefined);
+    if(results.length === 0) throw new NotFoundError('Response not found');
+
+    const response = results[0];
+    const updateValues: any = {};
+
+    switch(response.responseType){
+        case 'open-ended':
+            updateValues.response = (responsePayload as OpenEndedResponseDao).response;
+            break;
+        case 'multiple-choice':
+            updateValues.selectedOption = (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex;
+            break;
+        case 'binary-choice':
+            updateValues.choice = (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive';
+            break;
+        case 'likert-scale':
+            const rating = (responsePayload as LikertScaleResponseDao).selectedValue;
+            if(rating < 1 || rating > 5) {
+                throw new Error('Rating must be between 1 and 5 for question');
+            }
+            updateValues.rating = rating;
+            break;
+        default:
+            throw new Error('Unsupported question type');
     }
 
-    return fromPromise(updatePromise, toError);
+    const updated = await db.update(responses)
+        .set(updateValues)
+        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
+        .returning();
+
+    const r = updated[0];
+    return {
+        ...r,
+        _id: r.id,
+        question: r.questionId
+    };
 }

@@ -1,51 +1,45 @@
-import { ObjectId } from "mongodb";
-import { Client } from "../../models/auth/clientSchema";
 import { ClientInputDao } from "../../models/auth/dao/clientCreationModel";
+import { db } from "../../db";
+import { clients } from "../../db/schema";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
-import { addNewClient } from "@/libs/repositories/auth/clientRepository";
-import { getClientById as getClientFromDbById } from "@/libs/repositories/auth/clientRepository";
-const crypto = require('crypto');
+import crypto from "crypto";
 
 export async function createClient(clientDao: ClientInputDao, userId: string) {
-    const clientSecret = generateSecureRandomString(32);
+    const clientId = crypto.randomUUID();
+    const clientSecret = crypto.randomBytes(32).toString('hex');
     
     const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(clientSecret, salt);
+    const hashedSecret = await bcrypt.hash(clientSecret, salt);
 
-    const client: Client = {
+    await db.insert(clients).values({
+        id: clientId,
         clientName: clientDao.clientName,
         clientDescription: clientDao.clientDescription,
-        clientSecret: hash,
+        clientSecret: hashedSecret,
         redirectUris: clientDao.redirectUris ?? [],
-        user: new ObjectId(userId)
-    };
-
-    const clientId = await addNewClient(client);
+        userId: userId
+    });
 
     return {
-        clientName: client.clientName,
-        clientDescription: client.clientDescription,
-        redirectUris: client.redirectUris,
+        clientName: clientDao.clientName,
+        clientDescription: clientDao.clientDescription,
+        redirectUris: clientDao.redirectUris ?? [],
         clientId: clientId,
-        clientSecret
+        clientSecret: clientSecret
     };
 }
 
 export async function getClientById(clientId: string) {
-    return await getClientFromDbById(clientId);
-}
-    
-
-function generateRandomString(lenght : number) {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    const charactersLength = characters.length;
-    for ( let i = 0; i < lenght; i++ ) {
-        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    try {
+        const results = await db.select().from(clients).where(eq(clients.id, clientId)).limit(1);
+        if (results.length === 0) return null;
+        const client = results[0];
+        return {
+            ...client,
+            _id: client.id
+        };
+    } catch (err) {
+        throw err;
     }
-    return result;
-}
-
-function generateSecureRandomString(byteLenght: number) {
-    return crypto.randomBytes(byteLenght).toString('hex');
 }

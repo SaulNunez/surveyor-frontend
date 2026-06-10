@@ -1,18 +1,16 @@
 import { getAllSurveysForUser } from "@/libs/services/surveyService";
 import Link from "next/link";
-import dbConnect from "../lib/data";
 import { auth } from "@/auth";
 
 // Example usage:
 // <Dashboard />
 
 export default async function Dashboard() {
-  await dbConnect();
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user) {
     return (<p>User not logged in.</p>);
   }
-  const surveysResult = await getAllSurveysForUser(session.user.email);
+  const surveysResult = await getAllSurveysForUser(session.user.id);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 dark:bg-black">
@@ -31,9 +29,9 @@ export default async function Dashboard() {
 
       {/* Survey List */}
       <div className="grid gap-4">
-        {surveysResult.isOk() ? (
-          surveysResult.value.length > 0 ? (
-            surveysResult.value.map((survey) => (
+        {surveysResult ? (
+          surveysResult.length > 0 ? (
+            surveysResult.map((survey) => (
               <div
                 key={survey.id}
                 className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-md transition flex items-center justify-between"

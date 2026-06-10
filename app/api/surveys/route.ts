@@ -1,10 +1,8 @@
 import { createSurvey } from "@/libs/services/surveyService";
 import { SurveyInput } from "@/libs/models/frontend/survey";
-import dbConnect from "@/app/lib/data";
 import { auth } from "@/auth";
 
 export async function POST(request: Request) {
-    await dbConnect();
     const session = await auth();
 
     try {

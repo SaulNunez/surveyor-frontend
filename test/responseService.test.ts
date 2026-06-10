@@ -1,198 +1,79 @@
-import { addResponseToQuestion, getExistingResponseInQuestion, updateResponseToQuestion } from "../libs/services/responseService";
-import { NotFoundError } from "../libs/models/Errors/notFoundError";
-import * as responseRepository from "../libs/repositories/responseRepository";
-import * as questionRepository from "../libs/repositories/questionRepository";
+import { describe, it, expect } from 'vitest';
+import { db } from '../libs/db';
+import { users, surveys, attempts, questions, responses } from '../libs/db/schema';
+import { addResponseToQuestion, getExistingResponseInQuestion, updateResponseToQuestion } from '../libs/services/responseService';
+import { NotFoundError } from '../libs/models/Errors/notFoundError';
+import { InvalidOperationError } from '../libs/models/Errors/invalidOperationError';
+import { eq, and } from 'drizzle-orm';
 
-jest.mock("../libs/repositories/responseRepository");
-jest.mock("../libs/repositories/questionRepository");
+describe('responseService', () => {
+  it('should manage responses on a live database', async () => {
+    // 1. Seed user, survey, attempt, and questions
+    const [user] = await db.insert(users).values({
+      email: 'response@example.com',
+      password: 'password',
+    }).returning();
 
-describe("responseService", () => {
-  const attemptId = "attempt-id";
-  const questionId = "question-id";
-  const surveyId = "survey-id";
-  const responseId = "response-id";
+    const [survey] = await db.insert(surveys).values({
+      title: 'Survey for Responses',
+      description: 'Desc',
+      userId: user.id,
+    }).returning();
 
-  const mockGetQuestionById = questionRepository.getQuestionById as jest.Mock;
-  const mockCreateResponse = responseRepository.createResponse as jest.Mock;
-  const mockGetResponseForQuestion = responseRepository.getResponseForQuestion as jest.Mock;
-  const mockEditResponse = responseRepository.editResponse as jest.Mock;
+    const [attempt] = await db.insert(attempts).values({
+      surveyId: survey.id,
+      userId: user.id,
+    }).returning();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+    const [mcqQuestion] = await db.insert(questions).values({
+      surveyId: survey.id,
+      text: 'MCQ Question',
+      questionType: 'multiple-choice',
+      options: ['A', 'B'],
+    }).returning();
 
-  describe("addResponseToQuestion", () => {
-    it("should return NotFoundError if question does not exist", async () => {
-      mockGetQuestionById.mockResolvedValue(null);
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, {} as any);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
+    const [likertQuestion] = await db.insert(questions).values({
+      surveyId: survey.id,
+      text: 'Likert Question',
+      questionType: 'likert-scale',
+      positiveLabel: 'Good',
+      negativeLabel: 'Bad',
+    }).returning();
+
+    // 2. Test: add MCQ response
+    const res1 = await addResponseToQuestion(attempt.id, mcqQuestion.id, {
+      questionType: 'multiple-choice',
+      selectedOptionIndex: 1,
     });
+    expect(res1.id).toBe(attempt.id);
+    expect(res1.responses).toHaveLength(1);
+    expect(res1.responses[0].questionId).toBe(mcqQuestion.id);
+    expect(res1.responses[0].selectedOption).toBe(1);
 
-    it("should return Error if response question type does not match question type", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "open-ended" });
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "multiple-choice" } as any);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr().message).toBe("Response question type does not match the question type");
+    // 3. Test: get existing response
+    const existingRes = await getExistingResponseInQuestion(attempt.id, mcqQuestion.id);
+    expect(existingRes.selectedOption).toBe(1);
+
+    // 4. Test: add duplicate response (should throw InvalidOperationError)
+    await expect(addResponseToQuestion(attempt.id, mcqQuestion.id, {
+      questionType: 'multiple-choice',
+      selectedOptionIndex: 0,
+    })).rejects.toThrow(InvalidOperationError);
+
+    // 5. Test: add invalid likert rating (should throw Error)
+    await expect(addResponseToQuestion(attempt.id, likertQuestion.id, {
+      questionType: 'likert-scale',
+      selectedValue: 10,
+    })).rejects.toThrow('Selected value must be between 1 and 5 for question');
+
+    // 6. Test: update response
+    const updated = await updateResponseToQuestion(attempt.id, mcqQuestion.id, {
+      questionType: 'multiple-choice',
+      selectedOptionIndex: 0,
     });
+    expect(updated.selectedOption).toBe(0);
 
-    it("should add open-ended response", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "open-ended" });
-      mockCreateResponse.mockResolvedValue(true);
-
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "open-ended", response: "answer" } as any);
-
-      expect(result.isOk()).toBe(true);
-      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
-        question: questionId,
-        response: "answer"
-      });
-    });
-
-    it("should add likert-scale response", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "likert-scale" });
-      mockCreateResponse.mockResolvedValue(true);
-
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "likert-scale", selectedValue: 3 } as any);
-
-      expect(result.isOk()).toBe(true);
-      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
-        question: questionId,
-        rating: 3
-      });
-    });
-
-    it("should return Error for invalid likert-scale value", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "likert-scale" });
-
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "likert-scale", selectedValue: 6 } as any);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr().message).toBe("Selected value must be between 1 and 5 for question");
-    });
-
-    it("should add multiple-choice response", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "multiple-choice" });
-      mockCreateResponse.mockResolvedValue(true);
-
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "multiple-choice", selectedOptionIndex: 1 } as any);
-
-      expect(result.isOk()).toBe(true);
-      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
-        question: questionId,
-        selectedOption: 1
-      });
-    });
-
-    it("should add binary-choice response", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "binary-choice" });
-      mockCreateResponse.mockResolvedValue(true);
-
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "binary-choice", selectedOption: "positive" } as any);
-
-      expect(result.isOk()).toBe(true);
-      expect(mockCreateResponse).toHaveBeenCalledWith(attemptId, {
-        question: questionId,
-        choice: true
-      });
-    });
-
-    it("should return Error for unsupported question type", async () => {
-      mockGetQuestionById.mockResolvedValue({ _id: questionId, questionType: "unknown" });
-      const result = await addResponseToQuestion(attemptId, questionId, surveyId, { questionType: "unknown" } as any);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr().message).toBe("Unsupported question type");
-    });
-  });
-
-  describe("getExistingResponseInQuestion", () => {
-    it("should return NotFoundError if response not found", async () => {
-      mockGetResponseForQuestion.mockResolvedValue(null);
-      const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
-    });
-
-    it("should return open-ended response", async () => {
-      mockGetResponseForQuestion.mockResolvedValue({ responseType: "open-ended", response: "test" });
-      const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toEqual({ questionType: "open-ended", response: "test" });
-    });
-
-    it("should return likert-scale response", async () => {
-      mockGetResponseForQuestion.mockResolvedValue({ responseType: "likert-scale", rating: 4 });
-      const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toEqual({ questionType: "likert-scale", selectedValue: 4 });
-    });
-
-    it("should return multiple-choice response", async () => {
-      mockGetResponseForQuestion.mockResolvedValue({ responseType: "multiple-choice", selectedOption: 2 });
-      const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toEqual({ questionType: "multiple-choice", selectedOptionIndex: 2 });
-    });
-
-    it("should return binary-choice response", async () => {
-      mockGetResponseForQuestion.mockResolvedValue({ responseType: "binary-choice", choice: true });
-      const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toEqual({ questionType: "binary-choice", selectedOption: "positive" });
-    });
-
-    it("should return Error for unsupported response type", async () => {
-      mockGetResponseForQuestion.mockResolvedValue({ responseType: "unknown" });
-      const result = await getExistingResponseInQuestion(attemptId, questionId);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr().message).toBe("Unsupported response type");
-    });
-  });
-
-  describe("updateResponseToQuestion", () => {
-    it("should update open-ended response", async () => {
-      mockEditResponse.mockResolvedValue(true);
-      const result = await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "open-ended", response: "new" } as any);
-      expect(result.isOk()).toBe(true);
-      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
-        question: questionId,
-        response: "new"
-      });
-    });
-
-    it("should update multiple-choice response", async () => {
-      mockEditResponse.mockResolvedValue(true);
-      const result = await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "multiple-choice", selectedOptionIndex: 1 } as any);
-      expect(result.isOk()).toBe(true);
-      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
-        question: questionId,
-        selectedOption: 1
-      });
-    });
-
-    it("should update binary-choice response", async () => {
-      mockEditResponse.mockResolvedValue(true);
-      const result = await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "binary-choice", selectedOption: "positive" } as any);
-      expect(result.isOk()).toBe(true);
-      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
-        question: questionId,
-        choice: true
-      });
-    });
-
-    it("should update likert-scale response", async () => {
-      mockEditResponse.mockResolvedValue(true);
-      const result = await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "likert-scale", selectedValue: 5 } as any);
-      expect(result.isOk()).toBe(true);
-      expect(mockEditResponse).toHaveBeenCalledWith(attemptId, responseId, {
-        question: questionId,
-        rating: 5
-      });
-    });
-
-    it("should return Error for invalid likert-scale update", async () => {
-      const result = await updateResponseToQuestion(attemptId, responseId, questionId, { questionType: "likert-scale", selectedValue: 6 } as any);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr().message).toBe("Rating must be between 1 and 5 for question");
-    });
+    const verifiedRes = await getExistingResponseInQuestion(attempt.id, mcqQuestion.id);
+    expect(verifiedRes.selectedOption).toBe(0);
   });
 });

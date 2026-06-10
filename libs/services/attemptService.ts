@@ -1,230 +1,110 @@
+import { db } from "../db";
+import { attempts } from "../db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { Question, QuestionBase, QuestionType } from "../models/questionSchema";
-import { BinaryChoiceResult, LikertScaleResult, MultipleChoiceResult, OpenEndedResult } from "../models/resultSchema";
-import { createAttempt, getAttemptById, getAttemptBySurveyAndUser, editExistingAttempt as editExistingAttemptDb, deleteAttempt, getCompletedAttemptsBySurvey } from "../repositories/attemptRepository";
-import { ResultAsync, ok, err, fromPromise } from "neverthrow";
-import { Response } from "../models/responseSchema";
-import { getSurveyById } from "../repositories/surveyRepository";
 
-// Helper to convert unknown error to Error
-const toError = (e: unknown) => e instanceof Error ? e : new Error(String(e));
+async function getLatestAttempt(surveyId: string, userId: string) {
+    const results = await db.select()
+        .from(attempts)
+        .where(and(eq(attempts.surveyId, surveyId), eq(attempts.userId, userId)))
+        .orderBy(desc(attempts.startedAt))
+        .limit(1);
 
-export function getExistingAttempt(surveyId: string, userId: string) {
-    return fromPromise(
-        getAttemptBySurveyAndUser(surveyId, userId),
-        toError
-    ).andThen(existingAttempt => {
-        if (!existingAttempt) {
-            return err(new NotFoundError('Attempt not found'));
-        }
+    if (results.length === 0) throw new NotFoundError('No attempt found');
 
-        if (existingAttempt.completedAt) {
-            return ok(null);
-        }
-
-        return ok({
-            id: existingAttempt._id.toString(),
-            survey: existingAttempt.survey,
-            startedAt: existingAttempt.startedAt
-        });
-    });
+    return results[0];
 }
 
-export function createNewAttempt(surveyId: string, userId: string) {
-    return fromPromise(
-        getAttemptBySurveyAndUser(surveyId, userId),
-        toError
-    ).andThen(existingAttempt => {
-        if (existingAttempt && existingAttempt.completedAt) {
-            return ok({
-                id: existingAttempt._id.toString(),
-                survey: existingAttempt.survey,
-                startedAt: existingAttempt.startedAt
-            });
-        }
+export async function getExistingAttempt(surveyId: string, userId: string) {
+    let existingAttempt = await getLatestAttempt(surveyId, userId);
 
-        // If not completed or doesn't exist, create new
-        return fromPromise(
-            createAttempt(surveyId, userId),
-            toError
-        ).andThen(newAttemptId =>
-            fromPromise(
-                getAttemptById(newAttemptId),
-                toError
-            )
-        ).andThen(newAttempt => {
-            if (!newAttempt) {
-                return err(new InvalidOperationError('Could not create attempt'));
-            }
-            return ok({
-                id: newAttempt._id.toString(),
-                survey: newAttempt.survey,
-                startedAt: newAttempt.startedAt
-            });
-        });
-    });
-}
+    if (existingAttempt.completedAt) {
+        return null;
+    }
 
-export function deleteExistingAttempt(attemptId: string, userId: string) {
-    return fromPromise(
-        getAttemptById(attemptId),
-        toError
-    ).andThen(existingAttempt => {
-        if (!existingAttempt || existingAttempt.user.toString() !== userId) {
-            return err(new NotFoundError('Attempt not found'));
-        }
-        return ok(existingAttempt);
-    }).andThen(() =>
-        fromPromise(
-            deleteAttempt(attemptId, userId),
-            toError
-        )
-    ).andThen(deleteRes => {
-        if (!deleteRes) {
-            return err(new InvalidOperationError('Could not delete attempt'));
-        }
-        return ok(true);
-    });
-}
-
-function calculateResult(question: Question, responses: Response[]) {
-    // Initialize common fields
-    const baseResult = {
-        questionId: question._id!.toString(),
-        questionType: question.questionType,
-        createdAt: new Date(),
-        lastUpdated: new Date()
+    return {
+        id: existingAttempt.id,
+        survey: existingAttempt.surveyId,
+        startedAt: existingAttempt.startedAt
     };
-
-    switch (question.questionType) {
-        case QuestionType.OPEN_ENDED:
-            const openEndedResponses = responses as import("../models/responseSchema").OpenEndedResponse[];
-            return {
-                ...baseResult,
-                representativeQuotes: openEndedResponses.map(r => r.response),
-                totalResponses: responses.length,
-                thematicTags: [] // Placeholder for future implementation
-            } as OpenEndedResult;
-
-        case QuestionType.MULTIPLE_CHOICE:
-            const mcQuestion = question as import("../models/questionSchema").MultipleChoiceQuestion;
-            const mcResponses = responses as import("../models/responseSchema").MultipleChoiceResponse[];
-
-            // Initialize sums with 0 for each option
-            const mcSelectionSum = new Array(mcQuestion.options.length).fill(0);
-
-            mcResponses.forEach(r => {
-                if (r.selectedOption >= 0 && r.selectedOption < mcSelectionSum.length) {
-                    mcSelectionSum[r.selectedOption]++;
-                }
-            });
-
-            return {
-                ...baseResult,
-                selectionSum: mcSelectionSum
-            } as MultipleChoiceResult;
-
-        case QuestionType.BINARY_CHOICE:
-            const bcResponses = responses as import("../models/responseSchema").BinaryChoiceResponse[];
-            let positiveCount = 0;
-            let negativeCount = 0;
-
-            bcResponses.forEach(r => {
-                if (r.choice) {
-                    positiveCount++;
-                } else {
-                    negativeCount++;
-                }
-            });
-
-            return {
-                ...baseResult,
-                positiveSelectionSum: positiveCount,
-                negativeSelectionSum: negativeCount
-            } as BinaryChoiceResult;
-
-        case QuestionType.LIKERT_SCALE:
-            const lsQuestion = question as import("../models/questionSchema").LikertScaleQuestion;
-            const lsResponses = responses as import("../models/responseSchema").LikertScaleResponse[];
-
-            // Initialize sums with 0 for each option (Likert scale options usually map to array indices or specific values)
-            // Assuming options array length corresponds to the range of ratings.
-            // However, LikertScaleResponse has 'rating: number'. 
-            // If explicit options are provided, we map to them. 
-            // If we assume rating is 0-indexed index of option:
-            const lsSelectionSum = new Array(lsQuestion.options.length).fill(0);
-
-            lsResponses.forEach(r => {
-                if (r.rating >= 0 && r.rating < lsSelectionSum.length) {
-                    lsSelectionSum[r.rating]++;
-                }
-            });
-
-            return {
-                ...baseResult,
-                selectionSum: lsSelectionSum
-            } as LikertScaleResult;
-
-        default:
-            throw new Error(`Unsupported question type: ${(question as any).questionType}`);
-    }
 }
 
-export async function obtainResultsOutOfCompletedAttempts(surveyId: string) {
-    const attempts = await getCompletedAttemptsBySurvey(surveyId);
+export async function createNewAttempt(surveyId: string, userId: string) {
+    let existingAttempt = await getLatestAttempt(surveyId, userId);
 
-    // Group responses by question ID
-    const responsesByQuestionId = attempts.flatMap(attempt => attempt.responses).reduce((acc, response) => {
-        if (acc.has(response.question)) {
-            acc.get(response.question)!.push(response);
-        } else {
-            acc.set(response.question, [response]);
-        }
-        return acc;
-    }, new Map<string, Response[]>());
-
-    // Fetch survey to get question definitions
-    const survey = await getSurveyById(surveyId);
-    if (!survey) {
-        throw new NotFoundError("Survey not found");
+    if (existingAttempt && existingAttempt.completedAt) {
+        return {
+            id: existingAttempt.id,
+            survey: existingAttempt.surveyId,
+            startedAt: existingAttempt.startedAt
+        };
     }
 
-    const results = survey.questions.map(question => {
-        const questionId = question._id!.toString();
-        const responses = responsesByQuestionId.get(questionId) || [];
-        return calculateResult(question, responses);
-    });
+    const results = await db.insert(attempts).values({
+        surveyId: surveyId,
+        userId: userId,
+        startedAt: new Date()
+    }).returning();
 
-    return results;
+    const newAttempt = results[0];
+
+    return {
+        id: newAttempt.id,
+        survey: newAttempt.surveyId,
+        startedAt: newAttempt.startedAt
+    };
 }
 
-export function completeExistingAttempt(attemptId: string, userId: string) {
-    return fromPromise(
-        getAttemptById(attemptId),
-        toError
-    ).andThen(existingAttempt => {
-        if (!existingAttempt) {
-            return err(new NotFoundError('Attempt not found'));
-        }
+export async function deleteExistingAttempt(attemptId: string, userId: string) {
+    const results = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
 
-        if (existingAttempt.completedAt) {
-            return err(new InvalidOperationError("Attempt already completed"));
-        }
+    if (results.length === 0) {
+        throw new NotFoundError('Attempt not found');
+    }
 
-        if (existingAttempt.user.toString() !== userId) {
-            return err(new NotFoundError('Attempt not found'));
-        }
+    const existingAttempt = results[0];
 
-        existingAttempt.completedAt = new Date();
-        return fromPromise(
-            editExistingAttemptDb(attemptId, userId, existingAttempt),
-            toError
-        ).map(() => ({
-            id: existingAttempt._id.toString(),
-            survey: existingAttempt.survey,
-            startedAt: existingAttempt.startedAt,
-            completedAt: existingAttempt.completedAt
-        }));
-    });
+    if (existingAttempt.completedAt) {
+        throw new InvalidOperationError('Attempt not found');
+    }
+
+    if (existingAttempt.userId !== userId) {
+        throw new NotFoundError('Attempt not found');
+    }
+
+    await db.delete(attempts).where(eq(attempts.id, attemptId));
+    return true;
+}
+
+export async function completeExistingAttempt(attemptId: string, userId: string) {
+    const results = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+
+    if (results.length === 0) {
+        throw new NotFoundError('Attempt not found');
+    }
+
+    const existingAttempt = results[0];
+
+    if (existingAttempt.completedAt) {
+        return null;
+    }
+
+    if (existingAttempt.userId !== userId) {
+        throw new NotFoundError('Attempt not found');
+    }
+
+    const updated = await db.update(attempts)
+        .set({ completedAt: new Date() })
+        .where(eq(attempts.id, attemptId))
+        .returning();
+
+    const completedAttempt = updated[0];
+
+    return {
+        id: completedAttempt.id,
+        survey: completedAttempt.surveyId,
+        startedAt: completedAttempt.startedAt,
+        completedAt: completedAttempt.completedAt
+    };
 }

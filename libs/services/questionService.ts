@@ -1,156 +1,130 @@
-import { BinaryChoiceQuestionDao, LikertScaleQuestionDao, MultipleChoiceQuestionDao, OpenEndedQuestionDao, QuestionInput } from "../models/frontend/question";
-import { QuestionType } from "../models/questionSchema";
-import { getQuestionById, deleteQuestion as deleteQuestionFromDb, createQuestion as createQuestionInDb, updateQuestion } from "../repositories/questionRepository";
-import { getSurveyById } from "../repositories/surveyRepository";
-import { ResultAsync, ok, err, fromPromise } from "neverthrow";
+import { QuestionDao } from "../models/frontend/question";
+import { db } from "../db";
+import { questions, surveys } from "../db/schema";
+import { eq, and } from "drizzle-orm";
 
-// Helper to convert unknown error to Error
-const toError = (e: unknown) => e instanceof Error ? e : new Error(String(e));
-
-export function createQuestion(surveyId: string, questionData: QuestionInput) {
-    // switch logic to determine input for repository
-    let createPromise;
-    switch (questionData.questionType) {
-        case 'multiple-choice':
-            createPromise = createQuestionInDb(surveyId, {
-                questionType: QuestionType.MULTIPLE_CHOICE,
-                text: questionData.title,
-                options: questionData.options
-            });
-            break;
-        case 'binary-choice':
-            createPromise = createQuestionInDb(surveyId, {
-                questionType: QuestionType.BINARY_CHOICE,
-                text: questionData.title,
-                positiveLabel: questionData.positiveLabel,
-                negativeLabel: questionData.negativeLabel
-            });
-            break;
-        case 'likert-scale':
-            createPromise = createQuestionInDb(surveyId, {
-                questionType: QuestionType.LIKERT_SCALE,
-                text: questionData.title,
-                positiveLabel: questionData.positiveLabel,
-                negativeLabel: questionData.negativeLabel,
-                options: ['1', '2', '3', '4', '5']
-            });
-            break;
-        case 'open-ended':
-            createPromise = createQuestionInDb(surveyId, {
-                questionType: QuestionType.OPEN_ENDED,
-                text: questionData.title,
-            });
-            break;
-        default:
-            return err(new Error('Invalid question type'));
+export async function createQuestion(surveyId: string, questionData: QuestionDao) {
+    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+    if (surveyResults.length === 0) {
+        throw new Error('Survey not found');
     }
 
-    return fromPromise(createPromise, toError);
+    const insertValues: any = {
+        surveyId,
+        text: questionData.title,
+        questionType: questionData.questionType
+    };
+
+    switch(questionData.questionType) {
+        case 'multiple-choice':
+            insertValues.options = questionData.options;
+            break;
+        case 'binary-choice':
+        case 'likert-scale':
+            insertValues.positiveLabel = questionData.positiveLabel;
+            insertValues.negativeLabel = questionData.negativeLabel;
+            break;
+        case 'open-ended':
+            break;
+        default:
+            throw new Error('Invalid question type');
+    }
+
+    await db.insert(questions).values(insertValues);
 }
 
-export function getQuestionsForSurvey(surveyId: string) {
-    return fromPromise(
-        getSurveyById(surveyId),
-        toError
-    ).andThen(survey => {
-        if (!survey) {
-            return err(new Error('Survey not found'));
-        }
+export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionDao) {
+    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+    if (surveyResults.length === 0) {
+        throw new Error('Survey not found');
+    }
 
-        const questions = survey.questions.map(question => {
-            if (question.questionType === QuestionType.BINARY_CHOICE) {
-                return {
-                    id: question._id,
-                    questionType: 'binary-choice',
-                    positiveLabel: question.positiveLabel,
-                    negativeLabel: question.negativeLabel,
-                    title: question.text
-                } as BinaryChoiceQuestionDao;
-            }
-            else if (question.questionType === QuestionType.LIKERT_SCALE) {
-                return {
-                    id: question._id,
-                    questionType: 'likert-scale',
-                    positiveLabel: question.positiveLabel,
-                    negativeLabel: question.negativeLabel,
-                    title: question.text
-                } as LikertScaleQuestionDao;
-            }
-            else if (question.questionType === QuestionType.MULTIPLE_CHOICE) {
-                return {
-                    id: question._id,
-                    questionType: 'multiple-choice',
-                    title: question.text,
-                    options: question.options
-                } as MultipleChoiceQuestionDao;
-            }
-            else if (question.questionType === QuestionType.OPEN_ENDED) {
-                return {
-                    id: question._id,
-                    questionType: 'open-ended',
-                    title: question.text
-                } as OpenEndedQuestionDao;
-            }
-            else {
-                return null;
-            }
-        });
-        return ok(questions.filter(q => q !== null) as (BinaryChoiceQuestionDao | LikertScaleQuestionDao | MultipleChoiceQuestionDao | OpenEndedQuestionDao)[]);
+    const questionResults = await db.select()
+        .from(questions)
+        .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)))
+        .limit(1);
+    if (questionResults.length === 0) {
+        throw new Error('Question not found');
+    }
+
+    const updateValues: any = {
+        text: questionData.title,
+        questionType: questionData.questionType,
+        // Reset subclass specific values that might change
+        options: null,
+        positiveLabel: null,
+        negativeLabel: null
+    };
+
+    switch(questionData.questionType) {
+        case 'multiple-choice':
+            updateValues.options = questionData.options;
+            break;
+        case 'binary-choice':
+        case 'likert-scale':
+            updateValues.positiveLabel = questionData.positiveLabel;
+            updateValues.negativeLabel = questionData.negativeLabel;
+            break;
+        case 'open-ended':
+            break;
+        default:
+            throw new Error('Invalid question type');
+    }
+
+    await db.update(questions)
+        .set(updateValues)
+        .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)));
+}
+
+export async function deleteQuestion(surveyId: string, questionId: string) {
+    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+    if (surveyResults.length === 0) {
+        throw new Error('Survey not found');
+    }
+
+    const questionResults = await db.select()
+        .from(questions)
+        .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)))
+        .limit(1);
+    if (questionResults.length === 0) {
+        throw new Error('Question not found');
+    }
+
+    await db.delete(questions)
+        .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)));
+}
+
+export async function getQuestionsForSurvey(surveyId: string) {
+    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+    if (surveyResults.length === 0) {
+        throw new Error('Survey not found');
+    }
+
+    const results = await db.select()
+        .from(questions)
+        .where(eq(questions.surveyId, surveyId));
+
+    return results.map(question => {
+        const questionType = question.questionType;
+        const base = {
+            id: question.id,
+            questionType: question.questionType,
+            title: question.text,
+        };
+
+        if (questionType === 'multiple-choice') {
+            return {
+                ...base,
+                options: question.options || [],
+            };
+        } else if (questionType === 'binary-choice' || questionType === 'likert-scale') {
+            return {
+                ...base,
+                positiveLabel: question.positiveLabel || '',
+                negativeLabel: question.negativeLabel || '',
+            };
+        } else {
+            return base; // open-ended
+        }
     });
-}
-
-export function editQuestion(surveyId: string, questionId: string, questionData: QuestionInput) {
-    return fromPromise(
-        getQuestionById(questionId, surveyId),
-        toError
-    ).andThen(question => {
-        if (!question) {
-            return err(new Error('Question not found'));
-        }
-
-        if (question.questionType !== questionData.questionType) {
-            return err(new Error('Question type cannot be changed'));
-        }
-
-        if (question.questionType === QuestionType.MULTIPLE_CHOICE
-            && questionData.questionType === QuestionType.MULTIPLE_CHOICE
-        ) {
-            question.text = questionData.title;
-            question.options = questionData.options;
-        }
-
-        if (question.questionType === QuestionType.OPEN_ENDED
-            && questionData.questionType === QuestionType.OPEN_ENDED
-        ) {
-            question.text = questionData.title;
-        }
-
-        if (question.questionType === QuestionType.BINARY_CHOICE
-            && questionData.questionType === QuestionType.BINARY_CHOICE
-        ) {
-            question.text = questionData.title;
-            question.positiveLabel = questionData.positiveLabel;
-            question.negativeLabel = questionData.negativeLabel;
-        }
-
-        if (question.questionType === QuestionType.LIKERT_SCALE
-            && questionData.questionType === QuestionType.LIKERT_SCALE
-        ) {
-            question.text = questionData.title;
-            question.positiveLabel = questionData.positiveLabel;
-            question.negativeLabel = questionData.negativeLabel;
-        }
-
-        return fromPromise(
-            updateQuestion(surveyId, questionId, question),
-            toError
-        );
-    });
-}
-
-export function deleteQuestion(surveyId: string, questionId: string) {
-    return fromPromise(
-        deleteQuestionFromDb(questionId, surveyId),
-        toError
-    );
 }

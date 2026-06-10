@@ -7,8 +7,18 @@ import type { NextAuthOptions } from "next-auth"
 import { getServerSession } from "next-auth"
 import bcrypt from "bcrypt";
 import Credentials from "next-auth/providers/credentials";
-import dbConnect from "./app/lib/data";
 import { getUserByEmail } from "./libs/services/auth/userService";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      email?: string | null;
+      name?: string | null;
+      image?: string | null;
+    }
+  }
+}
 
 // You'll need to import and pass this
 // to `NextAuth` in `app/api/auth/[...nextauth]/route.ts`
@@ -31,25 +41,37 @@ export const config = {
                 if(!credentials) {
                     throw new Error('Invalid credentials');
                 }
-                await dbConnect();
                 const user = await getUserByEmail(credentials.email);
                 if (!user) {
                     throw new Error('Invalid credentials');
                 }
 
-                const isMatch = bcrypt.compare(credentials.password, user.hash);
+                const isMatch = await bcrypt.compare(credentials.password, user.password);
                 if (!isMatch) {
                     throw new Error('Invalid credentials');
                 }
 
                 return {
-                    id: user._id.toString(),
+                    id: user.id,
                     email: user.email,
-                    name: user.displayName
                 };
             },
         }),
-  ], // rest of your config
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token && session.user) {
+        session.user.id = token.id as string;
+      }
+      return session;
+    }
+  }
 } satisfies NextAuthOptions
 
 // Use it in server contexts

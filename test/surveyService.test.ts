@@ -1,127 +1,61 @@
-import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey } from "../libs/services/surveyService";
-import { NotFoundError } from "../libs/models/Errors/notFoundError";
-import * as surveyRepository from "../libs/repositories/surveyRepository";
+import { describe, it, expect } from 'vitest';
+import { db } from '../libs/db';
+import { users } from '../libs/db/schema';
+import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey } from '../libs/services/surveyService';
+import { NotFoundError } from '../libs/models/Errors/notFoundError';
 
-jest.mock("../libs/repositories/surveyRepository");
+describe('surveyService', () => {
+  it('should create, get, edit, and delete surveys on a live database', async () => {
+    // 1. Seed a user
+    const [user] = await db.insert(users).values({
+      email: 'test@example.com',
+      password: 'hashed-password',
+    }).returning();
 
-describe("surveyService", () => {
-  const userId = "user-id";
-  const surveyId = "survey-id";
-  const mockSurvey = {
-    _id: surveyId,
-    title: "Test Survey",
-    description: "Test Description",
-    user: userId,
-    createdAt: new Date(),
-  };
+    const userId = user.id;
 
-  const mockGetSurveysByUser = surveyRepository.getSurveysByUser as jest.Mock;
-  const mockGetSurveyById = surveyRepository.getSurveyById as jest.Mock;
-  const mockCreateSurvey = surveyRepository.createSurvey as jest.Mock;
-  const mockUpdateSurvey = surveyRepository.updateSurvey as jest.Mock;
-  const mockDeleteSurvey = surveyRepository.deleteSurvey as jest.Mock;
+    // 2. Test createSurvey
+    const createResult = await createSurvey('Test Survey', 'Test Description', userId);
+    expect(createResult.title).toBe('Test Survey');
+    expect(createResult.description).toBe('Test Description');
+    expect(createResult.id).toBeDefined();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+    const surveyId = createResult.id;
 
-  describe("getAllSurveysForUser", () => {
-    it("should return surveys for user", async () => {
-      mockGetSurveysByUser.mockResolvedValue([mockSurvey]);
+    // 3. Test getSurvey
+    const getResult = await getSurvey(surveyId);
+    expect(getResult.title).toBe('Test Survey');
+    expect(getResult.id).toBe(surveyId);
 
-      const result = await getAllSurveysForUser(userId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toHaveLength(1);
-      expect(result._unsafeUnwrap()[0].id).toBe(surveyId);
-      expect(mockGetSurveysByUser).toHaveBeenCalledWith(userId);
-    });
-  });
+    // 4. Test getSurvey not found
+    await expect(getSurvey('00000000-0000-0000-0000-000000000000')).rejects.toThrow(NotFoundError);
 
-  describe("getSurvey", () => {
-    it("should return survey if found", async () => {
-      mockGetSurveyById.mockResolvedValue(mockSurvey);
+    // 5. Test getAllSurveysForUser
+    const allSurveys = await getAllSurveysForUser(userId);
+    expect(allSurveys).toHaveLength(1);
+    expect(allSurveys[0].id).toBe(surveyId);
 
-      const result = await getSurvey(surveyId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap().id).toBe(surveyId);
-      expect(mockGetSurveyById).toHaveBeenCalledWith(surveyId);
-    });
+    // 6. Test editSurvey
+    const editResult = await editSurvey(surveyId, userId, 'Updated Title', 'Updated Desc');
+    expect(editResult.title).toBe('Updated Title');
+    expect(editResult.description).toBe('Updated Desc');
 
-    it("should return NotFoundError if survey not found", async () => {
-      mockGetSurveyById.mockResolvedValue(null);
+    // 7. Test editSurvey not found / wrong user
+    await expect(editSurvey('00000000-0000-0000-0000-000000000000', userId, 'T', 'D')).rejects.toThrow(NotFoundError);
+    
+    // Seed another user to test wrong user access
+    const [otherUser] = await db.insert(users).values({
+      email: 'other@example.com',
+      password: 'password',
+    }).returning();
+    
+    await expect(editSurvey(surveyId, otherUser.id, 'T', 'D')).rejects.toThrow(NotFoundError);
 
-      const result = await getSurvey(surveyId);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
-    });
-  });
+    // 8. Test deleteSurvey
+    const deleteResult = await deleteSurvey(surveyId, userId);
+    expect(deleteResult).toBe(true);
 
-  describe("createSurvey", () => {
-    it("should create and return survey", async () => {
-      mockCreateSurvey.mockResolvedValue(mockSurvey._id);
-
-      const result = await createSurvey("Title", "Desc", userId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap().id).toBe(surveyId);
-      expect(mockCreateSurvey).toHaveBeenCalledWith(userId, "Title", "Desc");
-    });
-  });
-
-  describe("editSurvey", () => {
-    it("should update survey if found and user matches", async () => {
-      mockGetSurveyById.mockResolvedValue(mockSurvey);
-      mockUpdateSurvey.mockResolvedValue({ ...mockSurvey, title: "New Title" });
-
-      const result = await editSurvey(surveyId, userId, "New Title", "New Desc");
-      expect(result.isOk()).toBe(true);
-      expect(mockUpdateSurvey).toHaveBeenCalledWith(surveyId, userId, "New Title", "New Desc");
-      expect(result._unsafeUnwrap().title).toBe("New Title");
-    });
-
-    it("should return NotFoundError if survey not found", async () => {
-      mockGetSurveyById.mockResolvedValue(null);
-
-      const result = await editSurvey(surveyId, userId, "T", "D");
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
-    });
-
-    it("should return NotFoundError if user does not match", async () => {
-      const otherUserSurvey = { ...mockSurvey, user: "other-user" };
-      mockGetSurveyById.mockResolvedValue(otherUserSurvey);
-
-      const result = await editSurvey(surveyId, userId, "T", "D");
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
-    });
-  });
-
-  describe("deleteSurvey", () => {
-    it("should delete survey if found and user matches", async () => {
-      mockGetSurveyById.mockResolvedValue(mockSurvey);
-      mockDeleteSurvey.mockResolvedValue(true);
-
-      const result = await deleteSurvey(surveyId, userId);
-      expect(result.isOk()).toBe(true);
-      expect(result._unsafeUnwrap()).toBe(true);
-      expect(mockDeleteSurvey).toHaveBeenCalledWith(surveyId, userId);
-    });
-
-    it("should return NotFoundError if survey not found", async () => {
-      mockGetSurveyById.mockResolvedValue(null);
-
-      const result = await deleteSurvey(surveyId, userId);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
-    });
-
-    it("should return NotFoundError if user does not match", async () => {
-      const otherUserSurvey = { ...mockSurvey, user: "other-user" };
-      mockGetSurveyById.mockResolvedValue(otherUserSurvey);
-
-      const result = await deleteSurvey(surveyId, userId);
-      expect(result.isErr()).toBe(true);
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(NotFoundError);
-    });
+    // Verify deleted
+    await expect(getSurvey(surveyId)).rejects.toThrow(NotFoundError);
   });
 });

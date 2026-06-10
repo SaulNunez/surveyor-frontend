@@ -1,16 +1,20 @@
-import { createTokenForUser } from "@/libs/repositories/auth/tokenRepository";
-const bcrypt = require('bcryptjs');
+import { db } from "../../db";
+import { refreshTokens } from "../../db/schema";
+import bcrypt from "bcrypt";
 
 export async function saveRefreshToken(token: string, userId: string, clientId: string, expiryDate: Date) {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(token, salt);
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedToken = await bcrypt.hash(token, salt);
 
-    const result = await createTokenForUser({
-        token_hash: hash,
-        userId,
-        clientId,
-        expiryDate
-    });
-
-    return result.toString();
+        await db.insert(refreshTokens).values({
+            token: hashedToken,
+            userId,
+            clientId,
+            expiryDate
+        });
+        return true;
+    } catch (err) {
+        return false;
+    }
 }
