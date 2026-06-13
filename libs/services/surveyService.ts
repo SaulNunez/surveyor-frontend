@@ -1,7 +1,7 @@
 import { NotFoundError } from "../models/Errors/notFoundError";
 import { db } from "../db";
-import { surveys } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { surveys, questions, responses, attempts } from "../db/schema";
+import { eq, and, isNotNull, count } from "drizzle-orm";
 
 export async function getAllSurveysForUser(userId: string) {
     const results = await db.select().from(surveys).where(eq(surveys.userId, userId));
@@ -86,4 +86,160 @@ export async function deleteSurvey(surveyId: string, userId: string) {
 
     await db.delete(surveys).where(eq(surveys.id, surveyId));
     return true;
+}
+
+export async function getOptionSelectionCountForQuestion(questionId: string) {
+    const questionResults = await db.select()
+        .from(questions)
+        .where(eq(questions.id, questionId))
+        .limit(1);
+
+    if (questionResults.length === 0) {
+        throw new NotFoundError('Question not found');
+    }
+
+    const question = questionResults[0];
+    if (question.questionType !== 'multiple-choice') {
+        throw new Error('Question is not a multiple-choice question');
+    }
+
+    const results = await db.select({
+        selectedOption: responses.selectedOption,
+        count: count(),
+    })
+    .from(responses)
+    .where(
+        and(
+            eq(responses.questionId, questionId),
+            isNotNull(responses.selectedOption)
+        )
+    )
+    .groupBy(responses.selectedOption);
+
+    const options = question.options || [];
+    const countMap: Record<number, { optionIndex: number, optionText: string, count: number }> = {};
+
+    options.forEach((optionText, index) => {
+        countMap[index] = {
+            optionIndex: index,
+            optionText: optionText,
+            count: 0
+        };
+    });
+
+    for (const row of results) {
+        const option = row.selectedOption!;
+        
+        if (countMap[option] !== undefined) {
+            countMap[option].count = row.count;
+        } else {
+            countMap[option] = {
+                optionIndex: option,
+                optionText: options[option] || `Option ${option}`,
+                count: row.count
+            };
+        }
+    }
+
+    return Object.values(countMap);
+}
+
+export async function getLikertScaleRatingCountForQuestion(questionId: string) {
+    const questionResults = await db.select()
+        .from(questions)
+        .where(eq(questions.id, questionId))
+        .limit(1);
+
+    if (questionResults.length === 0) {
+        throw new NotFoundError('Question not found');
+    }
+
+    const question = questionResults[0];
+    if (question.questionType !== 'likert-scale') {
+        throw new Error('Question is not a likert-scale question');
+    }
+
+    const results = await db.select({
+        rating: responses.rating,
+        count: count(),
+    })
+    .from(responses)
+    .where(
+        and(
+            eq(responses.questionId, questionId),
+            isNotNull(responses.rating)
+        )
+    )
+    .groupBy(responses.rating);
+
+    const countMap: Record<number, { rating: number, count: number }> = {};
+
+    for (let r = 1; r <= 5; r++) {
+        countMap[r] = {
+            rating: r,
+            count: 0
+        };
+    }
+
+    for (const row of results) {
+        const rating = row.rating!;
+        if (countMap[rating] !== undefined) {
+            countMap[rating].count = row.count;
+        } else {
+            countMap[rating] = {
+                rating: rating,
+                count: row.count
+            };
+        }
+    }
+
+    return Object.values(countMap);
+}
+
+export async function getBinaryChoiceCountForQuestion(questionId: string) {
+    const questionResults = await db.select()
+        .from(questions)
+        .where(eq(questions.id, questionId))
+        .limit(1);
+
+    if (questionResults.length === 0) {
+        throw new NotFoundError('Question not found');
+    }
+
+    const question = questionResults[0];
+    if (question.questionType !== 'binary-choice') {
+        throw new Error('Question is not a binary-choice question');
+    }
+
+    const results = await db.select({
+        choice: responses.choice,
+        count: count(),
+    })
+    .from(responses)
+    .where(
+        and(
+            eq(responses.questionId, questionId),
+            isNotNull(responses.choice)
+        )
+    )
+    .groupBy(responses.choice);
+
+    const positiveLabel = question.positiveLabel || 'Yes';
+    const negativeLabel = question.negativeLabel || 'No';
+
+    const countMap = {
+        positive: { choice: 'positive', label: positiveLabel, count: 0 },
+        negative: { choice: 'negative', label: negativeLabel, count: 0 },
+    };
+
+    for (const row of results) {
+        const isPositive = row.choice!;
+        if (isPositive) {
+            countMap.positive.count = row.count;
+        } else {
+            countMap.negative.count = row.count;
+        }
+    }
+
+    return Object.values(countMap);
 }
