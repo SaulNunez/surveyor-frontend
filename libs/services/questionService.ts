@@ -1,9 +1,9 @@
-import { QuestionDao } from "../models/frontend/question";
+import { QuestionDao, QuestionInput } from "../models/frontend/question";
 import { db } from "../db";
 import { questions, surveys } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 
-export async function createQuestion(surveyId: string, questionData: QuestionDao) {
+export async function createQuestion(surveyId: string, questionData: QuestionInput) {
     const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
     if (surveyResults.length === 0) {
         throw new Error('Survey not found');

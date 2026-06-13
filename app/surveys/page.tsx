@@ -1,7 +1,7 @@
 import { getAllSurveysForUser } from "@/libs/services/surveyService";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { Plus, Calendar, ArrowRight, FileText } from "lucide-react";
+import { Plus, Calendar, ArrowRight, FileText, BarChart2 } from "lucide-react";
 
 export default async function Dashboard() {
   const session = await auth();
@@ -53,7 +53,7 @@ export default async function Dashboard() {
           {surveysResult.length > 0 && (
             <Link
               href="/surveys/create"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-xs transition active:scale-[0.98]"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-650 dark:hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow transition active:scale-[0.98]"
             >
               <Plus size={16} /> Create Survey
             </Link>
@@ -62,7 +62,7 @@ export default async function Dashboard() {
 
         {/* Error State */}
         {errorMsg && (
-          <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-2xl mb-6 text-sm font-medium">
+          <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-250 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-2xl mb-6 text-sm font-medium">
             Error loading surveys: {errorMsg}
           </div>
         )}
@@ -89,12 +89,20 @@ export default async function Dashboard() {
                       <Calendar size={14} />
                       <span>{new Date(survey.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
-                    <Link
-                      href={`/surveys/${survey.id}`}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 text-xs font-bold rounded-lg border border-gray-250/60 dark:border-zinc-700/80 transition"
-                    >
-                      View <ArrowRight size={12} />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/surveys/${survey.id}/answers`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-lg border border-blue-100/50 dark:border-blue-900/30 transition"
+                      >
+                        <BarChart2 size={12} /> Stats
+                      </Link>
+                      <Link
+                        href={`/surveys/${survey.id}`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 text-xs font-bold rounded-lg border border-gray-250/60 dark:border-zinc-700/80 transition"
+                      >
+                        View <ArrowRight size={12} />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}

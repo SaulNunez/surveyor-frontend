@@ -33,7 +33,7 @@ export async function getExistingAttempt(surveyId: string, userId: string) {
 export async function createNewAttempt(surveyId: string, userId: string) {
     let existingAttempt = await getLatestAttempt(surveyId, userId);
 
-    if (existingAttempt && existingAttempt.completedAt) {
+    if (existingAttempt && !existingAttempt.completedAt) {
         return {
             id: existingAttempt.id,
             survey: existingAttempt.surveyId,

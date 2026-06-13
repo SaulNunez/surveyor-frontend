@@ -1,6 +1,7 @@
 import { createSurvey } from "@/libs/services/surveyService";
 import { SurveyInput } from "@/libs/models/frontend/survey";
 import { auth } from "@/auth";
+import { createQuestion } from "@/libs/services/questionService";
 
 export async function POST(request: Request) {
     const session = await auth();
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
             throw new Error("Email not defined!");
         }
 
-        const surveyResult = await createSurvey(title, description, session.user.email);
+        const surveyResult = await createSurvey(title, description, session.user.id);
 
         const questions = body["questions"].map(async (question) => await createQuestion(surveyResult.id, question));
         await Promise.all(questions);
@@ -40,8 +41,4 @@ export async function POST(request: Request) {
 
         return new Response(message, { status: 500 });
     }
-}
-
-function createQuestion(arg0: string, questionData: any): any {
-    throw new Error("Function not implemented.");
 }
