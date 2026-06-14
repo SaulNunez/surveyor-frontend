@@ -53,6 +53,13 @@ export default function SurveyAnswer() {
 
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isResetting, setIsResetting] = useState(false);
+  const [hasInitialAttempt, setHasInitialAttempt] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (attemptData !== undefined && hasInitialAttempt === null) {
+      setHasInitialAttempt(!!attemptData?.attempt);
+    }
+  }, [attemptData, hasInitialAttempt]);
 
   useEffect(() => {
     if (attemptData?.responses) {
@@ -73,6 +80,7 @@ export default function SurveyAnswer() {
       });
       if (response.ok) {
         setResponses({});
+        setHasInitialAttempt(false);
         await refetchAttempt();
       } else {
         alert("Failed to reset attempt. Please try again.");
@@ -174,7 +182,7 @@ export default function SurveyAnswer() {
         </div>
 
         {/* Active Attempt Warning Banner */}
-        {attemptData?.attempt && (
+        {hasInitialAttempt && attemptData?.attempt && (
           <div className="mb-6 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all duration-200 animate-in fade-in slide-in-from-top-4">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded-xl">
