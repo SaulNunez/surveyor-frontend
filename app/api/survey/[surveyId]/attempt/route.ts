@@ -36,7 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ surv
                 responsesMap[r.questionId] = r.response;
             } else if (r.responseType === 'multiple-choice') {
                 const q = questionsSurvey.find(q => q.id === r.questionId);
-                if (q && q.options && r.selectedOption !== null && r.selectedOption !== undefined) {
+                if (q?.questionType === 'multiple-choice' && r.selectedOption !== null && r.selectedOption !== undefined) {
                     responsesMap[r.questionId] = q.options[r.selectedOption];
                 }
             } else if (r.responseType === 'binary-choice') {

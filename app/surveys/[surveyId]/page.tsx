@@ -193,7 +193,7 @@ export default function SurveyAnswer() {
                   Resuming Existing Attempt
                 </h3>
                 <p className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-0.5">
-                  We've loaded your previous responses. You can modify them or start fresh.
+                  We&apos;ve loaded your previous responses. You can modify them or start fresh.
                 </p>
               </div>
             </div>

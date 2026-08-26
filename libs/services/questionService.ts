@@ -33,7 +33,7 @@ export async function createQuestion(surveyId: string, questionData: QuestionInp
     await db.insert(questions).values(insertValues);
 }
 
-export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionDao) {
+export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionInput) {
     const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
     if (surveyResults.length === 0) {
         throw new Error('Survey not found');
@@ -104,27 +104,30 @@ export async function getQuestionsForSurvey(surveyId: string) {
         .from(questions)
         .where(eq(questions.surveyId, surveyId));
 
-    return results.map(question => {
-        const questionType = question.questionType;
+    return results.map((question): QuestionDao => {
+        const questionType = question.questionType as QuestionDao['questionType'];
         const base = {
             id: question.id,
-            questionType: question.questionType,
             title: question.text,
         };
 
-        if (questionType === 'multiple-choice') {
-            return {
-                ...base,
-                options: question.options || [],
-            };
-        } else if (questionType === 'binary-choice' || questionType === 'likert-scale') {
-            return {
-                ...base,
-                positiveLabel: question.positiveLabel || '',
-                negativeLabel: question.negativeLabel || '',
-            };
-        } else {
-            return base; // open-ended
+        switch (questionType) {
+            case 'multiple-choice':
+                return {
+                    ...base,
+                    questionType,
+                    options: question.options || [],
+                };
+            case 'binary-choice':
+            case 'likert-scale':
+                return {
+                    ...base,
+                    questionType,
+                    positiveLabel: question.positiveLabel || '',
+                    negativeLabel: question.negativeLabel || '',
+                };
+            default:
+                return { ...base, questionType: 'open-ended' };
         }
     });
 }

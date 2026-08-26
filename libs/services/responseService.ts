@@ -3,9 +3,9 @@ import { responses, attempts, questions } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { QuestionResponseDao, MultipleChoiceResponseDao, BinaryChoiceResponseDao, OpenEndedResponseDao, LikertScaleResponseDao } from "../models/frontend/result";
+import { QuestionResponseInput, MultipleChoiceResponseInput, BinaryChoiceResponseInput, OpenEndedResponseInput, LikertScaleResponseInput } from "../models/frontend/result";
 
-export async function addResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseDao){
+export async function addResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseInput){
     const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
     if(questionResults.length === 0) throw new NotFoundError('Question not found');
 
@@ -29,20 +29,20 @@ export async function addResponseToQuestion(attemptId: string, questionId: strin
 
     switch(responsePayload.questionType){
         case 'open-ended':
-            insertValues.response = (responsePayload as OpenEndedResponseDao).response;
+            insertValues.response = (responsePayload as OpenEndedResponseInput).response;
             break;
         case 'likert-scale':
-            const rating = (responsePayload as LikertScaleResponseDao).selectedValue;
+            const rating = (responsePayload as LikertScaleResponseInput).selectedValue;
             if(rating < 1 || rating > 5) {
                 throw new Error('Selected value must be between 1 and 5 for question');
             }
             insertValues.rating = rating;
             break;
         case 'multiple-choice':
-            insertValues.selectedOption = (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex;
+            insertValues.selectedOption = (responsePayload as MultipleChoiceResponseInput).selectedOptionIndex;
             break;
         case 'binary-choice':
-            insertValues.choice = (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive';
+            insertValues.choice = (responsePayload as BinaryChoiceResponseInput).selectedOption === 'positive';
             break;
         default:
             throw new Error('Unsupported question type');
@@ -86,7 +86,7 @@ export async function getExistingResponseInQuestion(attemptId: string, questionI
     };
 }
 
-export async function updateResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseDao){
+export async function updateResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseInput){
     const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
     if(questionResults.length === 0) throw new NotFoundError('Question not found');
 
@@ -105,16 +105,16 @@ export async function updateResponseToQuestion(attemptId: string, questionId: st
 
     switch(response.responseType){
         case 'open-ended':
-            updateValues.response = (responsePayload as OpenEndedResponseDao).response;
+            updateValues.response = (responsePayload as OpenEndedResponseInput).response;
             break;
         case 'multiple-choice':
-            updateValues.selectedOption = (responsePayload as MultipleChoiceResponseDao).selectedOptionIndex;
+            updateValues.selectedOption = (responsePayload as MultipleChoiceResponseInput).selectedOptionIndex;
             break;
         case 'binary-choice':
-            updateValues.choice = (responsePayload as BinaryChoiceResponseDao).selectedOption === 'positive';
+            updateValues.choice = (responsePayload as BinaryChoiceResponseInput).selectedOption === 'positive';
             break;
         case 'likert-scale':
-            const rating = (responsePayload as LikertScaleResponseDao).selectedValue;
+            const rating = (responsePayload as LikertScaleResponseInput).selectedValue;
             if(rating < 1 || rating > 5) {
                 throw new Error('Rating must be between 1 and 5 for question');
             }
