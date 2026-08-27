@@ -4,7 +4,7 @@ import { getQuestionsForSurvey } from "@/libs/services/questionService";
 import { addResponseToQuestion, updateResponseToQuestion } from "@/libs/services/responseService";
 import { NotFoundError } from "@/libs/models/Errors/notFoundError";
 import { db } from "@/libs/db";
-import { responses, attempts } from "@/libs/db/schema";
+import { responses } from "@/libs/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
@@ -99,36 +99,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
         const { surveyId } = await params;
         const body = await request.json();
 
-        // Get or create attempt
-        let attempt = null;
-        try {
-            attempt = await getExistingAttempt(surveyId, session.user.id);
-        } catch (error) {
-            if (!(error instanceof NotFoundError)) {
-                throw error;
-            }
-        }
-
-        if (!attempt) {
-            try {
-                attempt = await createNewAttempt(surveyId, session.user.id);
-            } catch (error) {
-                if (error instanceof NotFoundError) {
-                    const results = await db.insert(attempts).values({
-                        surveyId: surveyId,
-                        userId: session.user.id,
-                        startedAt: new Date()
-                    }).returning();
-                    attempt = {
-                        id: results[0].id,
-                        survey: results[0].surveyId,
-                        startedAt: results[0].startedAt
-                    };
-                } else {
-                    throw error;
-                }
-            }
-        }
+        // Resumes the in-progress attempt, or starts one when there is none.
+        const attempt = await createNewAttempt(surveyId, session.user.id);
 
         const questionsSurvey = await getQuestionsForSurvey(surveyId);
 

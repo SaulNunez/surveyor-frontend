@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { db } from '../libs/db';
+import { eq } from 'drizzle-orm';
 import { users, surveys, attempts } from '../libs/db/schema';
 import { createNewAttempt, deleteExistingAttempt, completeExistingAttempt, getExistingAttempt } from '../libs/services/attemptService';
 import { NotFoundError } from '../libs/models/Errors/notFoundError';
@@ -19,54 +20,54 @@ describe('attemptService', () => {
       userId: user.id,
     }).returning();
 
-    // 2. Test: No attempt exists. getExistingAttempt throws NotFoundError
-    await expect(getExistingAttempt(survey.id, user.id)).rejects.toThrow(NotFoundError);
+    // 2. No attempt exists yet, so there is nothing to resume
+    expect(await getExistingAttempt(survey.id, user.id)).toBeNull();
 
-    // 3. Test: No attempt exists. createNewAttempt also throws NotFoundError because of getLatestAttempt
-    await expect(createNewAttempt(survey.id, user.id)).rejects.toThrow(NotFoundError);
+    // 3. createNewAttempt starts the first attempt
+    const firstAttempt = await createNewAttempt(survey.id, user.id);
+    expect(firstAttempt.id).toBeDefined();
+    expect(firstAttempt.survey).toBe(survey.id);
 
-    // 4. Manually seed an active/uncompleted attempt in the DB
-    const [activeAttempt] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-      startedAt: new Date(),
-    }).returning();
-
-    // 5. Test getExistingAttempt when active attempt exists
+    // 4. That attempt is now the one to resume
     const existing = await getExistingAttempt(survey.id, user.id);
     expect(existing).not.toBeNull();
-    expect(existing!.id).toBe(activeAttempt.id);
+    expect(existing!.id).toBe(firstAttempt.id);
 
-    // 6. Test createNewAttempt when active attempt exists (should create a NEW one, since latest is not completed)
-    const newAttempt = await createNewAttempt(survey.id, user.id);
-    expect(newAttempt.id).not.toBe(activeAttempt.id);
+    // 5. Calling createNewAttempt again resumes it rather than starting over
+    const resumed = await createNewAttempt(survey.id, user.id);
+    expect(resumed.id).toBe(firstAttempt.id);
+    const allAttempts = await db.select().from(attempts).where(eq(attempts.surveyId, survey.id));
+    expect(allAttempts).toHaveLength(1);
 
-    // 7. Test getExistingAttempt when latest attempt is completed
-    // First, complete the latest attempt (newAttempt)
-    const completed = await completeExistingAttempt(newAttempt.id, user.id);
+    // 6. Completing it means there is nothing left to resume
+    const completed = await completeExistingAttempt(firstAttempt.id, user.id);
     expect(completed).not.toBeNull();
     expect(completed!.completedAt).toBeDefined();
+    expect(await getExistingAttempt(survey.id, user.id)).toBeNull();
 
-    // Now getExistingAttempt should return null because the latest attempt is completed
-    const existingAfterCompletion = await getExistingAttempt(survey.id, user.id);
-    expect(existingAfterCompletion).toBeNull();
+    // 7. Once the latest attempt is completed, a new one is started
+    const secondAttempt = await createNewAttempt(survey.id, user.id);
+    expect(secondAttempt.id).not.toBe(firstAttempt.id);
 
-    // 8. Test createNewAttempt when latest attempt is completed (should return the completed attempt details)
-    const createdAfterCompletion = await createNewAttempt(survey.id, user.id);
-    expect(createdAfterCompletion.id).toBe(newAttempt.id);
+    // 8. completeExistingAttempt on an already completed attempt returns null
+    expect(await completeExistingAttempt(firstAttempt.id, user.id)).toBeNull();
 
-    // 9. Test completeExistingAttempt when already completed (should return null)
-    const completeAgain = await completeExistingAttempt(newAttempt.id, user.id);
-    expect(completeAgain).toBeNull();
+    // 9. A completed attempt cannot be deleted
+    await expect(deleteExistingAttempt(firstAttempt.id, user.id)).rejects.toThrow(InvalidOperationError);
 
-    // 10. Test deleteExistingAttempt for completed attempt (should throw InvalidOperationError)
-    await expect(deleteExistingAttempt(newAttempt.id, user.id)).rejects.toThrow(InvalidOperationError);
+    // 10. Starting over: delete the in-progress attempt, then create a fresh one
+    expect(await deleteExistingAttempt(secondAttempt.id, user.id)).toBe(true);
+    await expect(deleteExistingAttempt(secondAttempt.id, user.id)).rejects.toThrow(NotFoundError);
 
-    // 11. Test deleteExistingAttempt for active attempt
-    const deleteResult = await deleteExistingAttempt(activeAttempt.id, user.id);
-    expect(deleteResult).toBe(true);
+    const restarted = await createNewAttempt(survey.id, user.id);
+    expect(restarted.id).not.toBe(secondAttempt.id);
+    expect(restarted.id).not.toBe(firstAttempt.id);
 
-    // Verify deleted
-    await expect(deleteExistingAttempt(activeAttempt.id, user.id)).rejects.toThrow(NotFoundError);
+    // 11. Another user cannot touch this user's attempt
+    const [otherUser] = await db.insert(users).values({
+      email: 'other@example.com',
+      password: 'password',
+    }).returning();
+    await expect(deleteExistingAttempt(restarted.id, otherUser.id)).rejects.toThrow(NotFoundError);
   });
 });

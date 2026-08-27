@@ -4,41 +4,50 @@ import { eq, and, desc } from "drizzle-orm";
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
 
-async function getLatestAttempt(surveyId: string, userId: string) {
+type AttemptRow = typeof attempts.$inferSelect;
+
+function toAttempt(attempt: AttemptRow) {
+    return {
+        id: attempt.id,
+        survey: attempt.surveyId,
+        startedAt: attempt.startedAt
+    };
+}
+
+async function getLatestAttempt(surveyId: string, userId: string): Promise<AttemptRow | null> {
     const results = await db.select()
         .from(attempts)
         .where(and(eq(attempts.surveyId, surveyId), eq(attempts.userId, userId)))
         .orderBy(desc(attempts.startedAt))
         .limit(1);
 
-    if (results.length === 0) throw new NotFoundError('No attempt found');
-
-    return results[0];
+    return results[0] ?? null;
 }
 
+/**
+ * The user's in-progress attempt at a survey, or null when they have never
+ * started one or have already completed their latest one.
+ */
 export async function getExistingAttempt(surveyId: string, userId: string) {
-    let existingAttempt = await getLatestAttempt(surveyId, userId);
+    const latestAttempt = await getLatestAttempt(surveyId, userId);
 
-    if (existingAttempt.completedAt) {
+    if (!latestAttempt || latestAttempt.completedAt) {
         return null;
     }
 
-    return {
-        id: existingAttempt.id,
-        survey: existingAttempt.surveyId,
-        startedAt: existingAttempt.startedAt
-    };
+    return toAttempt(latestAttempt);
 }
 
+/**
+ * Get-or-create: resumes the in-progress attempt when there is one, otherwise
+ * starts a fresh attempt. Starting over is done by deleting the in-progress
+ * attempt first (see `deleteExistingAttempt`) and calling this again.
+ */
 export async function createNewAttempt(surveyId: string, userId: string) {
-    let existingAttempt = await getLatestAttempt(surveyId, userId);
+    const existingAttempt = await getExistingAttempt(surveyId, userId);
 
-    if (existingAttempt && !existingAttempt.completedAt) {
-        return {
-            id: existingAttempt.id,
-            survey: existingAttempt.surveyId,
-            startedAt: existingAttempt.startedAt
-        };
+    if (existingAttempt) {
+        return existingAttempt;
     }
 
     const results = await db.insert(attempts).values({
@@ -47,13 +56,7 @@ export async function createNewAttempt(surveyId: string, userId: string) {
         startedAt: new Date()
     }).returning();
 
-    const newAttempt = results[0];
-
-    return {
-        id: newAttempt.id,
-        survey: newAttempt.surveyId,
-        startedAt: newAttempt.startedAt
-    };
+    return toAttempt(results[0]);
 }
 
 export async function deleteExistingAttempt(attemptId: string, userId: string) {
@@ -66,7 +69,7 @@ export async function deleteExistingAttempt(attemptId: string, userId: string) {
     const existingAttempt = results[0];
 
     if (existingAttempt.completedAt) {
-        throw new InvalidOperationError('Attempt not found');
+        throw new InvalidOperationError('Cannot delete a completed attempt');
     }
 
     if (existingAttempt.userId !== userId) {
@@ -102,9 +105,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string)
     const completedAttempt = updated[0];
 
     return {
-        id: completedAttempt.id,
-        survey: completedAttempt.surveyId,
-        startedAt: completedAttempt.startedAt,
+        ...toAttempt(completedAttempt),
         completedAt: completedAttempt.completedAt
     };
 }
