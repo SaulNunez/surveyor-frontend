@@ -5,7 +5,7 @@ import { ServerError } from "@/components/common/ServerError";
 import { SurveyDao } from "@/libs/models/frontend/survey";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import { 
@@ -19,6 +19,10 @@ import {
   AlertCircle
 } from "lucide-react";
 import Link from "next/link";
+
+// Answers are batched for this long before being saved, so holding down a key
+// produces one request rather than dozens.
+const SAVE_DEBOUNCE_MS = 500;
 
 export default function SurveyAnswer() {
   const params = useParams();
@@ -54,6 +58,15 @@ export default function SurveyAnswer() {
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isResetting, setIsResetting] = useState(false);
   const [hasInitialAttempt, setHasInitialAttempt] = useState<boolean | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  // Answers changed since the last save, held until the debounce fires so that
+  // typing produces one batched request instead of one per keystroke.
+  const pendingAnswers = useRef<Record<string, any>>({});
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The attempt these saves belong to. Sent with each save so the server can
+  // reject writes aimed at an attempt that was restarted in another tab.
+  const attemptId = useRef<string | null>(null);
 
   useEffect(() => {
     if (attemptData !== undefined && hasInitialAttempt === null) {
@@ -62,6 +75,8 @@ export default function SurveyAnswer() {
   }, [attemptData, hasInitialAttempt]);
 
   useEffect(() => {
+    attemptId.current = attemptData?.attempt?.id ?? null;
+
     if (attemptData?.responses) {
       setResponses(attemptData.responses);
     } else {
@@ -69,16 +84,76 @@ export default function SurveyAnswer() {
     }
   }, [attemptData]);
 
+  const flushPendingAnswers = useCallback(async () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+
+    const answers = pendingAnswers.current;
+    if (Object.keys(answers).length === 0) return;
+    pendingAnswers.current = {};
+
+    setSaveState("saving");
+    try {
+      const response = await fetch(`/api/survey/${surveyId}/attempt`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attemptId: attemptId.current ?? undefined, answers }),
+      });
+
+      if (response.status === 409) {
+        // Someone restarted this attempt elsewhere; the answers we were holding
+        // belong to an attempt that no longer exists.
+        setSaveState("error");
+        alert("This attempt was restarted somewhere else. Reloading your progress.");
+        await refetchAttempt();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const body = await response.json();
+      attemptId.current = body.attemptId ?? attemptId.current;
+      setSaveState("saved");
+    } catch (err) {
+      console.error("Error saving response progress:", err);
+      // Put the answers back so the next save retries them.
+      pendingAnswers.current = { ...answers, ...pendingAnswers.current };
+      setSaveState("error");
+    }
+  }, [surveyId, refetchAttempt]);
+
+  // Don't strand answers the user typed just before navigating away.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
   const handleStartAnew = async () => {
     if (!confirm("Are you sure you want to discard your current progress and start over?")) {
       return;
     }
     setIsResetting(true);
+
+    // Drop anything still queued: it belongs to the attempt being discarded.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    pendingAnswers.current = {};
+    setSaveState("idle");
+
     try {
-      const response = await fetch(`/api/survey/${surveyId}/attempt`, {
-        method: "DELETE",
+      // Discards the old attempt and starts a new one in a single transaction,
+      // so a failure part-way cannot leave the user with no attempt at all.
+      const response = await fetch(`/api/survey/${surveyId}/attempt/restart`, {
+        method: "POST",
       });
       if (response.ok) {
+        const body = await response.json();
+        attemptId.current = body.attempt?.id ?? null;
         setResponses({});
         setHasInitialAttempt(false);
         await refetchAttempt();
@@ -93,24 +168,16 @@ export default function SurveyAnswer() {
     }
   };
 
-  const handleResponse = async (id: string, value: any) => {
+  const handleResponse = (id: string, value: any) => {
     setResponses((prev) => ({ ...prev, [id]: value }));
 
-    if (isLoggedIn) {
-      try {
-        await fetch(`/api/survey/${surveyId}/attempt`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ [id]: value }),
-        });
-        // Refetch attempt to ensure we keep local & remote states in sync
-        refetchAttempt();
-      } catch (err) {
-        console.error("Error saving response progress:", err);
-      }
-    }
+    if (!isLoggedIn) return;
+
+    pendingAnswers.current[id] = value;
+    setSaveState("saving");
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { void flushPendingAnswers(); }, SAVE_DEBOUNCE_MS);
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,6 +194,10 @@ export default function SurveyAnswer() {
 
     setIsSubmitting(true);
     try {
+      // Make sure the last debounced answers reach the server before the
+      // completeness check runs against them.
+      await flushPendingAnswers();
+
       const response = await fetch(`/api/survey/${surveyId}/attempt`, {
         method: "POST",
       });
@@ -361,6 +432,16 @@ export default function SurveyAnswer() {
           <div className="text-left">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Ready to send?</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">Make sure you have completed all questions before sending.</p>
+            {isLoggedIn && saveState !== "idle" && (
+              <p
+                role="status"
+                className={`text-xs mt-1 ${saveState === "error" ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}
+              >
+                {saveState === "saving" && "Saving your progress..."}
+                {saveState === "saved" && "Progress saved."}
+                {saveState === "error" && "Could not save your progress. It will be retried."}
+              </p>
+            )}
           </div>
           <button
             type="button"

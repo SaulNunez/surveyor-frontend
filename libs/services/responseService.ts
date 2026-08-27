@@ -1,138 +1,97 @@
 import { db } from "../db";
+import { Executor } from "../db/executor";
 import { responses, attempts, questions } from "../db/schema";
 import { eq, and } from "drizzle-orm";
-import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
-import { QuestionResponseInput, MultipleChoiceResponseInput, BinaryChoiceResponseInput, OpenEndedResponseInput, LikertScaleResponseInput } from "../models/frontend/result";
+import { QuestionResponseInput } from "../models/frontend/result";
 
-export async function addResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseInput){
-    const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
-    if(questionResults.length === 0) throw new NotFoundError('Question not found');
+type ResponseInsert = typeof responses.$inferInsert;
 
-    const attemptResults = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
-    if(attemptResults.length === 0) throw new NotFoundError('Attempt not found');
-    
-    const existingResponseResults = await db.select()
-        .from(responses)
-        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
-        .limit(1);
-    
-    if(existingResponseResults.length > 0){
-        throw new InvalidOperationError('Response to this question already exists in the attempt');
-    }
-
-    const insertValues: any = {
-        attemptId,
-        questionId,
-        responseType: responsePayload.questionType
+/**
+ * Maps a response onto the single-table-inheritance columns. Every column that
+ * does not belong to this question type is written as null, so changing a
+ * question's type cannot leave a stale value behind from the previous answer.
+ */
+function toResponseColumns(responsePayload: QuestionResponseInput) {
+    const columns = {
+        responseType: responsePayload.questionType,
+        response: null as string | null,
+        selectedOption: null as number | null,
+        choice: null as boolean | null,
+        rating: null as number | null,
     };
 
-    switch(responsePayload.questionType){
+    switch (responsePayload.questionType) {
         case 'open-ended':
-            insertValues.response = (responsePayload as OpenEndedResponseInput).response;
-            break;
-        case 'likert-scale':
-            const rating = (responsePayload as LikertScaleResponseInput).selectedValue;
-            if(rating < 1 || rating > 5) {
+            return { ...columns, response: responsePayload.response };
+        case 'multiple-choice':
+            return { ...columns, selectedOption: responsePayload.selectedOptionIndex };
+        case 'binary-choice':
+            return { ...columns, choice: responsePayload.selectedOption === 'positive' };
+        case 'likert-scale': {
+            const rating = responsePayload.selectedValue;
+            if (rating < 1 || rating > 5) {
                 throw new Error('Selected value must be between 1 and 5 for question');
             }
-            insertValues.rating = rating;
-            break;
-        case 'multiple-choice':
-            insertValues.selectedOption = (responsePayload as MultipleChoiceResponseInput).selectedOptionIndex;
-            break;
-        case 'binary-choice':
-            insertValues.choice = (responsePayload as BinaryChoiceResponseInput).selectedOption === 'positive';
-            break;
-        default:
-            throw new Error('Unsupported question type');
+            return { ...columns, rating };
+        }
+        default: {
+            const unsupported: never = responsePayload;
+            throw new Error(`Unsupported question type: ${JSON.stringify(unsupported)}`);
+        }
     }
-
-    await db.insert(responses).values(insertValues);
-
-    const attempt = attemptResults[0];
-    const attemptResponses = await db.select().from(responses).where(eq(responses.attemptId, attemptId));
-
-    return {
-        ...attempt,
-        _id: attempt.id,
-        responses: attemptResponses.map(r => ({
-            ...r,
-            _id: r.id,
-            question: r.questionId,
-        }))
-    };
 }
 
-export async function getExistingResponseInQuestion(attemptId: string, questionId: string){
-    const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
-    if(questionResults.length === 0) throw new NotFoundError('Question not found');
+/**
+ * Records the user's answer to a question, replacing any previous answer.
+ *
+ * Upsert rather than select-then-insert: two concurrent saves of the same
+ * answer would both find nothing and both insert, so
+ * `responses_attempt_question_unique` arbitrates and the loser updates.
+ */
+export async function saveResponse(
+    attemptId: string,
+    questionId: string,
+    responsePayload: QuestionResponseInput,
+    executor: Executor = db
+) {
+    const questionResults = await executor.select().from(questions).where(eq(questions.id, questionId)).limit(1);
+    if (questionResults.length === 0) throw new NotFoundError('Question not found');
 
-    const attemptResults = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
-    if(attemptResults.length === 0) throw new NotFoundError('Attempt not found');
-    
-    const results = await db.select()
-        .from(responses)
-        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
-        .limit(1);
+    const attemptResults = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+    if (attemptResults.length === 0) throw new NotFoundError('Attempt not found');
 
-    if(results.length === 0) throw new NotFoundError('Response not found');
+    const columns = toResponseColumns(responsePayload);
+    const values: ResponseInsert = { attemptId, questionId, ...columns };
 
-    const response = results[0];
-    return {
-        ...response,
-        _id: response.id,
-        question: response.questionId
-    };
-}
-
-export async function updateResponseToQuestion(attemptId: string, questionId: string, responsePayload: QuestionResponseInput){
-    const questionResults = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
-    if(questionResults.length === 0) throw new NotFoundError('Question not found');
-
-    const attemptResults = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
-    if(attemptResults.length === 0) throw new NotFoundError('Attempt not found');
-    
-    const results = await db.select()
-        .from(responses)
-        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
-        .limit(1);
-
-    if(results.length === 0) throw new NotFoundError('Response not found');
-
-    const response = results[0];
-    const updateValues: any = {};
-
-    switch(response.responseType){
-        case 'open-ended':
-            updateValues.response = (responsePayload as OpenEndedResponseInput).response;
-            break;
-        case 'multiple-choice':
-            updateValues.selectedOption = (responsePayload as MultipleChoiceResponseInput).selectedOptionIndex;
-            break;
-        case 'binary-choice':
-            updateValues.choice = (responsePayload as BinaryChoiceResponseInput).selectedOption === 'positive';
-            break;
-        case 'likert-scale':
-            const rating = (responsePayload as LikertScaleResponseInput).selectedValue;
-            if(rating < 1 || rating > 5) {
-                throw new Error('Rating must be between 1 and 5 for question');
-            }
-            updateValues.rating = rating;
-            break;
-        default:
-            throw new Error('Unsupported question type');
-    }
-
-    const updated = await db.update(responses)
-        .set(updateValues)
-        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
+    const saved = await executor.insert(responses)
+        .values(values)
+        .onConflictDoUpdate({
+            target: [responses.attemptId, responses.questionId],
+            set: columns,
+        })
         .returning();
 
-    const r = updated[0];
-    return {
-        ...r,
-        _id: r.id,
-        question: r.questionId
-    };
+    return saved[0];
+}
+
+export async function getExistingResponseInQuestion(attemptId: string, questionId: string, executor: Executor = db) {
+    const questionResults = await executor.select().from(questions).where(eq(questions.id, questionId)).limit(1);
+    if (questionResults.length === 0) throw new NotFoundError('Question not found');
+
+    const attemptResults = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+    if (attemptResults.length === 0) throw new NotFoundError('Attempt not found');
+
+    const results = await executor.select()
+        .from(responses)
+        .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
+        .limit(1);
+
+    if (results.length === 0) throw new NotFoundError('Response not found');
+
+    return results[0];
+}
+
+export async function getResponsesForAttempt(attemptId: string, executor: Executor = db) {
+    return await executor.select().from(responses).where(eq(responses.attemptId, attemptId));
 }
