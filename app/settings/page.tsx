@@ -27,7 +27,8 @@ export default async function Settings() {
                 name="email"
                 id="email"
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={user.email!}
+                value={user.email ?? ""}
+                readOnly
                 disabled
               />
             </div>
@@ -45,7 +46,8 @@ export default async function Settings() {
                 name="name"
                 id="name"
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={user.name!}
+                value={user.name ?? ""}
+                readOnly
                 disabled
               />
             </div>

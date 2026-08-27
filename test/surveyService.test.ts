@@ -4,6 +4,25 @@ import { users, surveys, questions, attempts, responses } from '../libs/db/schem
 import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey, getOptionSelectionCountForQuestion, getLikertScaleRatingCountForQuestion, getBinaryChoiceCountForQuestion, getSurveySummary } from '../libs/services/surveyService';
 import { NotFoundError } from '../libs/models/Errors/notFoundError';
 
+/**
+ * Each attempt belongs to a different respondent: a user may only have one
+ * in-progress attempt per survey, so several answers to the same question come
+ * from several people.
+ */
+async function seedRespondentAttempt(surveyId: string, email: string) {
+  const [respondent] = await db.insert(users).values({
+    email,
+    password: 'password',
+  }).returning();
+
+  const [attempt] = await db.insert(attempts).values({
+    surveyId,
+    userId: respondent.id,
+  }).returning();
+
+  return attempt;
+}
+
 describe('surveyService', () => {
   it('should create, get, edit, and delete surveys on a live database', async () => {
     // 1. Seed a user
@@ -81,10 +100,7 @@ describe('surveyService', () => {
       options: ['Option A', 'Option B', 'Option C'],
     }).returning();
 
-    const [attempt1] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt1 = await seedRespondentAttempt(survey.id, 'respondent-1@example.com');
     await db.insert(responses).values({
       attemptId: attempt1.id,
       questionId: mcq.id,
@@ -92,10 +108,7 @@ describe('surveyService', () => {
       selectedOption: 0,
     });
 
-    const [attempt2] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt2 = await seedRespondentAttempt(survey.id, 'respondent-2@example.com');
     await db.insert(responses).values({
       attemptId: attempt2.id,
       questionId: mcq.id,
@@ -103,10 +116,7 @@ describe('surveyService', () => {
       selectedOption: 0,
     });
 
-    const [attempt3] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt3 = await seedRespondentAttempt(survey.id, 'respondent-3@example.com');
     await db.insert(responses).values({
       attemptId: attempt3.id,
       questionId: mcq.id,
@@ -162,10 +172,7 @@ describe('surveyService', () => {
 
     // Seed responses
     // Attempt 1: Rating 5
-    const [attempt1] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt1 = await seedRespondentAttempt(survey.id, 'respondent-4@example.com');
     await db.insert(responses).values({
       attemptId: attempt1.id,
       questionId: likert.id,
@@ -174,10 +181,7 @@ describe('surveyService', () => {
     });
 
     // Attempt 2: Rating 5
-    const [attempt2] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt2 = await seedRespondentAttempt(survey.id, 'respondent-5@example.com');
     await db.insert(responses).values({
       attemptId: attempt2.id,
       questionId: likert.id,
@@ -186,10 +190,7 @@ describe('surveyService', () => {
     });
 
     // Attempt 3: Rating 2
-    const [attempt3] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt3 = await seedRespondentAttempt(survey.id, 'respondent-6@example.com');
     await db.insert(responses).values({
       attemptId: attempt3.id,
       questionId: likert.id,
@@ -241,10 +242,7 @@ describe('surveyService', () => {
 
     // Seed responses
     // Attempt 1: True (positive)
-    const [attempt1] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt1 = await seedRespondentAttempt(survey.id, 'respondent-7@example.com');
     await db.insert(responses).values({
       attemptId: attempt1.id,
       questionId: binary.id,
@@ -253,10 +251,7 @@ describe('surveyService', () => {
     });
 
     // Attempt 2: True (positive)
-    const [attempt2] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt2 = await seedRespondentAttempt(survey.id, 'respondent-8@example.com');
     await db.insert(responses).values({
       attemptId: attempt2.id,
       questionId: binary.id,
@@ -265,10 +260,7 @@ describe('surveyService', () => {
     });
 
     // Attempt 3: False (negative)
-    const [attempt3] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    const attempt3 = await seedRespondentAttempt(survey.id, 'respondent-9@example.com');
     await db.insert(responses).values({
       attemptId: attempt3.id,
       questionId: binary.id,
@@ -336,73 +328,35 @@ describe('surveyService', () => {
       questionType: 'open-ended',
     }).returning();
 
-    // 4. Seed responses
-    const [attempt] = await db.insert(attempts).values({
-      surveyId: survey.id,
-      userId: user.id,
-    }).returning();
+    // 4. Seed responses from three respondents, one attempt each
+    const first = await seedRespondentAttempt(survey.id, 'summary-1@example.com');
+    const second = await seedRespondentAttempt(survey.id, 'summary-2@example.com');
+    const third = await seedRespondentAttempt(survey.id, 'summary-3@example.com');
 
-    // MCQ responses
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: mcq.id,
-      responseType: 'multiple-choice',
-      selectedOption: 0,
-    });
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: mcq.id,
-      responseType: 'multiple-choice',
-      selectedOption: 1,
-    });
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: mcq.id,
-      responseType: 'multiple-choice',
-      selectedOption: 1,
-    });
+    // MCQ responses (Vanilla, Chocolate, Chocolate)
+    await db.insert(responses).values([
+      { attemptId: first.id, questionId: mcq.id, responseType: 'multiple-choice', selectedOption: 0 },
+      { attemptId: second.id, questionId: mcq.id, responseType: 'multiple-choice', selectedOption: 1 },
+      { attemptId: third.id, questionId: mcq.id, responseType: 'multiple-choice', selectedOption: 1 },
+    ]);
 
-    // Binary responses
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: binary.id,
-      responseType: 'binary-choice',
-      choice: true,
-    });
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: binary.id,
-      responseType: 'binary-choice',
-      choice: false,
-    });
+    // Binary responses (one yes, one no; the third respondent skipped it)
+    await db.insert(responses).values([
+      { attemptId: first.id, questionId: binary.id, responseType: 'binary-choice', choice: true },
+      { attemptId: second.id, questionId: binary.id, responseType: 'binary-choice', choice: false },
+    ]);
 
     // Likert responses
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: likert.id,
-      responseType: 'likert-scale',
-      rating: 4,
-    });
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: likert.id,
-      responseType: 'likert-scale',
-      rating: 5,
-    });
+    await db.insert(responses).values([
+      { attemptId: first.id, questionId: likert.id, responseType: 'likert-scale', rating: 4 },
+      { attemptId: second.id, questionId: likert.id, responseType: 'likert-scale', rating: 5 },
+    ]);
 
     // Open Ended responses
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: openEnded.id,
-      responseType: 'open-ended',
-      response: 'Great service!',
-    });
-    await db.insert(responses).values({
-      attemptId: attempt.id,
-      questionId: openEnded.id,
-      responseType: 'open-ended',
-      response: 'Loved the options.',
-    });
+    await db.insert(responses).values([
+      { attemptId: first.id, questionId: openEnded.id, responseType: 'open-ended', response: 'Great service!' },
+      { attemptId: second.id, questionId: openEnded.id, responseType: 'open-ended', response: 'Loved the options.' },
+    ]);
 
     // 5. Invoke getSurveySummary
     const summaryResult = await getSurveySummary(survey.id);

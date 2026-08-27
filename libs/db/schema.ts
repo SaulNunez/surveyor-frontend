@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, timestamp, boolean, integer, bigint } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, varchar, timestamp, boolean, integer, bigint, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Users Table
@@ -6,6 +6,7 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   password: varchar('password', { length: 255 }).notNull(),
+  displayName: varchar('display_name', { length: 255 }),
 });
 
 // Clients Table
@@ -72,7 +73,14 @@ export const attempts = pgTable('attempts', {
     .references(() => surveys.id, { onDelete: 'cascade' }),
   startedAt: timestamp('started_at').defaultNow().notNull(),
   completedAt: timestamp('completed_at'),
-});
+}, (table) => [
+  // A user may accumulate any number of completed attempts at a survey, but
+  // only ever one in progress. Enforced here so concurrent saves cannot each
+  // decide to start their own attempt.
+  uniqueIndex('attempts_one_in_progress_per_user_survey')
+    .on(table.surveyId, table.userId)
+    .where(sql`${table.completedAt} is null`),
+]);
 
 // Responses Table (stores all response subclasses using single-table inheritance)
 export const responses = pgTable('responses', {
@@ -96,4 +104,10 @@ export const responses = pgTable('responses', {
   
   // Likert Scale field
   rating: integer('rating'),
-});
+}, (table) => [
+  // One response per question per attempt. This is the arbiter for the upsert
+  // in `saveResponse`, so concurrent saves of the same answer collapse into
+  // one row instead of racing.
+  uniqueIndex('responses_attempt_question_unique')
+    .on(table.attemptId, table.questionId),
+]);

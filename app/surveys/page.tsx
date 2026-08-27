@@ -44,7 +44,7 @@ export default async function Dashboard() {
         <header className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              {greeting}, {session?.user?.name}
+              {greeting}, {session.user.name ?? session.user.email}
             </h1>
             <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
               Manage your active surveys and analyze responses.

@@ -19,7 +19,8 @@ export async function setup() {
       CREATE TABLE users (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         email varchar(255) NOT NULL UNIQUE,
-        password varchar(255) NOT NULL
+        password varchar(255) NOT NULL,
+        display_name varchar(255)
       );
 
       CREATE TABLE clients (
@@ -75,6 +76,12 @@ export async function setup() {
         choice boolean,
         rating integer
       );
+
+      CREATE UNIQUE INDEX attempts_one_in_progress_per_user_survey
+        ON attempts (survey_id, user_id) WHERE completed_at IS NULL;
+
+      CREATE UNIQUE INDEX responses_attempt_question_unique
+        ON responses (attempt_id, question_id);
     `);
     
     console.log('Test database schema initialized.');

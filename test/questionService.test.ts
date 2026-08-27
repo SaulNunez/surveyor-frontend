@@ -67,7 +67,9 @@ describe('questionService', () => {
     const surveyQuestions = await getQuestionsForSurvey(survey.id);
     expect(surveyQuestions).toHaveLength(2);
     expect(surveyQuestions[0].title).toBe('Open ended Q');
-    expect(surveyQuestions[1].options).toEqual(['Option 1', 'Option 2']);
+    const mcq = surveyQuestions[1];
+    expect(mcq.questionType).toBe('multiple-choice');
+    expect(mcq.questionType === 'multiple-choice' && mcq.options).toEqual(['Option 1', 'Option 2']);
 
     await expect(getQuestionsForSurvey('00000000-0000-0000-0000-000000000000')).rejects.toThrow('Survey not found');
 

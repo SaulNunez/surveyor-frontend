@@ -1,63 +1,90 @@
 import { db } from "../db";
+import { Executor } from "../db/executor";
 import { attempts } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
 
-async function getLatestAttempt(surveyId: string, userId: string) {
-    const results = await db.select()
+type AttemptRow = typeof attempts.$inferSelect;
+
+function toAttempt(attempt: AttemptRow) {
+    return {
+        id: attempt.id,
+        survey: attempt.surveyId,
+        startedAt: attempt.startedAt
+    };
+}
+
+/**
+ * The user's in-progress attempt at a survey, or null when they have never
+ * started one or have already completed their latest one.
+ *
+ * `attempts_one_in_progress_per_user_survey` guarantees there is at most one
+ * such row, so this does not have to guess which of several is current.
+ */
+export async function getExistingAttempt(surveyId: string, userId: string, executor: Executor = db) {
+    const results = await executor.select()
         .from(attempts)
-        .where(and(eq(attempts.surveyId, surveyId), eq(attempts.userId, userId)))
-        .orderBy(desc(attempts.startedAt))
+        .where(and(
+            eq(attempts.surveyId, surveyId),
+            eq(attempts.userId, userId),
+            isNull(attempts.completedAt)
+        ))
         .limit(1);
 
-    if (results.length === 0) throw new NotFoundError('No attempt found');
-
-    return results[0];
+    const attempt = results[0];
+    return attempt ? toAttempt(attempt) : null;
 }
 
-export async function getExistingAttempt(surveyId: string, userId: string) {
-    let existingAttempt = await getLatestAttempt(surveyId, userId);
+/**
+ * Get-or-create: resumes the in-progress attempt when there is one, otherwise
+ * starts a fresh attempt. Starting over is `restartAttempt`.
+ *
+ * Insert-first rather than check-then-insert: two concurrent saves would both
+ * pass a check, so the partial unique index arbitrates instead and the loser
+ * reads back the winner's row.
+ */
+export async function createNewAttempt(surveyId: string, userId: string, executor: Executor = db) {
+    const inserted = await executor.insert(attempts)
+        .values({ surveyId, userId, startedAt: new Date() })
+        .onConflictDoNothing({
+            target: [attempts.surveyId, attempts.userId],
+            // Repeats the partial index's predicate; without it Postgres cannot
+            // infer which index arbitrates the conflict.
+            where: sql`${attempts.completedAt} is null`
+        })
+        .returning();
 
-    if (existingAttempt.completedAt) {
-        return null;
+    if (inserted.length > 0) {
+        return toAttempt(inserted[0]);
     }
 
-    return {
-        id: existingAttempt.id,
-        survey: existingAttempt.surveyId,
-        startedAt: existingAttempt.startedAt
-    };
-}
-
-export async function createNewAttempt(surveyId: string, userId: string) {
-    let existingAttempt = await getLatestAttempt(surveyId, userId);
-
-    if (existingAttempt && !existingAttempt.completedAt) {
-        return {
-            id: existingAttempt.id,
-            survey: existingAttempt.surveyId,
-            startedAt: existingAttempt.startedAt
-        };
+    // Lost the race: the concurrent save's attempt is the in-progress one.
+    const existingAttempt = await getExistingAttempt(surveyId, userId, executor);
+    if (!existingAttempt) {
+        throw new InvalidOperationError('Could not start an attempt for this survey');
     }
-
-    const results = await db.insert(attempts).values({
-        surveyId: surveyId,
-        userId: userId,
-        startedAt: new Date()
-    }).returning();
-
-    const newAttempt = results[0];
-
-    return {
-        id: newAttempt.id,
-        survey: newAttempt.surveyId,
-        startedAt: newAttempt.startedAt
-    };
+    return existingAttempt;
 }
 
-export async function deleteExistingAttempt(attemptId: string, userId: string) {
-    const results = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+/**
+ * Discards the in-progress attempt and starts a fresh one in a single
+ * transaction, so a restart cannot leave the user with no attempt at all.
+ */
+export async function restartAttempt(surveyId: string, userId: string) {
+    return await db.transaction(async (tx) => {
+        const existingAttempt = await getExistingAttempt(surveyId, userId, tx);
+
+        if (existingAttempt) {
+            await tx.delete(attempts).where(eq(attempts.id, existingAttempt.id));
+        }
+
+        return await createNewAttempt(surveyId, userId, tx);
+    });
+}
+
+export async function deleteExistingAttempt(attemptId: string, userId: string, executor: Executor = db) {
+    const results = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
 
     if (results.length === 0) {
         throw new NotFoundError('Attempt not found');
@@ -66,19 +93,19 @@ export async function deleteExistingAttempt(attemptId: string, userId: string) {
     const existingAttempt = results[0];
 
     if (existingAttempt.completedAt) {
-        throw new InvalidOperationError('Attempt not found');
+        throw new InvalidOperationError('Cannot delete a completed attempt');
     }
 
     if (existingAttempt.userId !== userId) {
         throw new NotFoundError('Attempt not found');
     }
 
-    await db.delete(attempts).where(eq(attempts.id, attemptId));
+    await executor.delete(attempts).where(eq(attempts.id, attemptId));
     return true;
 }
 
-export async function completeExistingAttempt(attemptId: string, userId: string) {
-    const results = await db.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+export async function completeExistingAttempt(attemptId: string, userId: string, executor: Executor = db) {
+    const results = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
 
     if (results.length === 0) {
         throw new NotFoundError('Attempt not found');
@@ -94,7 +121,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string)
         throw new NotFoundError('Attempt not found');
     }
 
-    const updated = await db.update(attempts)
+    const updated = await executor.update(attempts)
         .set({ completedAt: new Date() })
         .where(eq(attempts.id, attemptId))
         .returning();
@@ -102,9 +129,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string)
     const completedAttempt = updated[0];
 
     return {
-        id: completedAttempt.id,
-        survey: completedAttempt.surveyId,
-        startedAt: completedAttempt.startedAt,
+        ...toAttempt(completedAttempt),
         completedAt: completedAttempt.completedAt
     };
 }
