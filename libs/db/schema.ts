@@ -111,3 +111,25 @@ export const responses = pgTable('responses', {
   uniqueIndex('responses_attempt_question_unique')
     .on(table.attemptId, table.questionId),
 ]);
+
+// AI-generated summaries of the open-ended answers to a question. Kept out of
+// `questions` because a summary is derived data with its own provenance
+// (which provider and model produced it, over how many answers, and when),
+// and because regenerating one must not touch the question itself.
+export const questionSummaries = pgTable('question_summaries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  questionId: uuid('question_id')
+    .notNull()
+    .references(() => questions.id, { onDelete: 'cascade' }),
+  summary: text('summary').notNull(),
+  provider: varchar('provider', { length: 50 }).notNull(),
+  model: varchar('model', { length: 100 }).notNull(),
+  responseCount: integer('response_count').notNull(),
+  generatedAt: timestamp('generated_at').defaultNow().notNull(),
+}, (table) => [
+  // At most one summary per question. This is the arbiter for the upsert in
+  // `generateSummaryForQuestion`, so two owners hitting Regenerate at once
+  // collapse into one row instead of racing.
+  uniqueIndex('question_summaries_question_unique')
+    .on(table.questionId),
+]);
