@@ -393,7 +393,10 @@ describe('surveyService', () => {
 
     // Open-ended check
     const openSummary = summaryResult.questions[3] as any;
-    expect(openSummary.summary).toContain('Great service!');
-    expect(openSummary.summary).toContain('Loved the options.');
+    expect(openSummary.responses).toHaveLength(2);
+    expect(openSummary.responses).toContain('Great service!');
+    expect(openSummary.responses).toContain('Loved the options.');
+    // No summary has been generated for this question yet.
+    expect(openSummary.aiSummary).toBeNull();
   });
 });

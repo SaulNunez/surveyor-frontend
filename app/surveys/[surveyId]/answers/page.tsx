@@ -5,10 +5,11 @@ import ReactMarkdown from "react-markdown";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, BarChart2 } from "lucide-react";
+import { ArrowLeft, BarChart2 } from "lucide-react";
 import { Loading } from "@/components/common/Loading";
 import { ServerError } from "@/components/common/ServerError";
-import { SurveySummaryDao } from "@/libs/models/frontend/survey";
+import { QuestionSummary, SurveySummaryDao } from "@/libs/models/frontend/survey";
+import { OpenEndedSummaryCard } from "./_components/OpenEndedSummaryCard";
 import {
   BarChart,
   Bar,
@@ -99,8 +100,14 @@ export default function SurveyAnswersPage() {
         </header>
 
         {/* Questions Summary */}
+        {!survey.aiSummaries.available && survey.questions.some(q => q.questionType === "open-ended") && (
+          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            AI summaries of open-ended answers are unavailable: no LLM provider is configured on this server.
+          </p>
+        )}
+
         <div className="grid gap-6">
-          {survey.questions.map((q: any, index: number) => (
+          {survey.questions.map((q: QuestionSummary, index: number) => (
             <div
               key={q.id || index}
               className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow transition duration-200"
@@ -123,20 +130,11 @@ export default function SurveyAnswersPage() {
 
               {/* Open Question */}
               {q.questionType === "open-ended" && (
-                <div className="mt-4">
-                  {q.summary ? (
-                    <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4 max-h-60 overflow-y-auto space-y-2">
-                      {q.summary.split(", ").map((resp: string, idx: number) => (
-                        <div key={idx} className="flex gap-2.5 items-start text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-3 rounded-lg shadow-2xs">
-                          <MessageSquare size={16} className="text-indigo-500 mt-0.5 shrink-0" />
-                          <p>{resp}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="dark:text-gray-400 text-gray-500 italic">No responses received yet.</p>
-                  )}
-                </div>
+                <OpenEndedSummaryCard
+                  surveyId={surveyId}
+                  question={q}
+                  aiAvailable={survey.aiSummaries.available}
+                />
               )}
 
               {/* Multiple Choice */}
@@ -145,7 +143,7 @@ export default function SurveyAnswersPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={q.result.map((opt: any) => ({ name: opt.option, value: opt.count }))}
+                        data={q.result.map((opt) => ({ name: opt.option, value: opt.count }))}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -153,7 +151,7 @@ export default function SurveyAnswersPage() {
                         paddingAngle={4}
                         dataKey="value"
                       >
-                        {q.result.map((entry: any, idx: number) => (
+                        {q.result.map((entry, idx: number) => (
                           <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} stroke="transparent" />
                         ))}
                       </Pie>
@@ -212,7 +210,7 @@ export default function SurveyAnswersPage() {
               {q.questionType === "likert-scale" && q.result && (
                 <div className="h-64 mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={q.result.map((row: any) => ({ scale: `Rating ${row.options}`, count: row.count }))}>
+                    <BarChart data={q.result.map((row) => ({ scale: `Rating ${row.options}`, count: row.count }))}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:stroke-gray-800" />
                       <XAxis dataKey="scale" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />

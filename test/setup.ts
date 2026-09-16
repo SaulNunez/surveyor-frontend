@@ -6,7 +6,7 @@ import { sql } from 'drizzle-orm';
 beforeEach(async () => {
   try {
     await db.execute(sql`
-      TRUNCATE TABLE responses, attempts, questions, surveys, refresh_tokens, clients, users RESTART IDENTITY CASCADE;
+      TRUNCATE TABLE question_summaries, responses, attempts, questions, surveys, refresh_tokens, clients, users RESTART IDENTITY CASCADE;
     `);
   } catch (error) {
     console.error('Failed to clean up test database:', error);
