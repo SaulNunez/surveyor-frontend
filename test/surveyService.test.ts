@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { db } from '../libs/db';
 import { users, surveys, questions, attempts, responses } from '../libs/db/schema';
-import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey, getOptionSelectionCountForQuestion, getLikertScaleRatingCountForQuestion, getBinaryChoiceCountForQuestion, getSurveySummary } from '../libs/services/surveyService';
+import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey, getOptionSelectionCountForQuestion, getLikertScaleRatingCountForQuestion, getBinaryChoiceCountForQuestion, getSurveySummary, resolveSurveyId } from '../libs/services/surveyService';
 import { NotFoundError } from '../libs/models/Errors/notFoundError';
+import { generateSurveyPublicId } from '../libs/db/publicId';
+import { eq } from 'drizzle-orm';
 
 /**
  * Each attempt belongs to a different respondent: a user may only have one
@@ -47,7 +49,7 @@ describe('surveyService', () => {
     expect(getResult.id).toBe(surveyId);
 
     // 4. Test getSurvey not found
-    await expect(getSurvey('00000000-0000-0000-0000-000000000000')).rejects.toThrow(NotFoundError);
+    await expect(getSurvey('ZZZZZZ')).rejects.toThrow(NotFoundError);
 
     // 5. Test getAllSurveysForUser
     const allSurveys = await getAllSurveysForUser(userId);
@@ -60,7 +62,7 @@ describe('surveyService', () => {
     expect(editResult.description).toBe('Updated Desc');
 
     // 7. Test editSurvey not found / wrong user
-    await expect(editSurvey('00000000-0000-0000-0000-000000000000', userId, 'T', 'D')).rejects.toThrow(NotFoundError);
+    await expect(editSurvey('ZZZZZZ', userId, 'T', 'D')).rejects.toThrow(NotFoundError);
     
     // Seed another user to test wrong user access
     const [otherUser] = await db.insert(users).values({
@@ -359,10 +361,10 @@ describe('surveyService', () => {
     ]);
 
     // 5. Invoke getSurveySummary
-    const summaryResult = await getSurveySummary(survey.id);
+    const summaryResult = await getSurveySummary(survey.publicId);
 
     // 6. Assertions
-    expect(summaryResult.id).toBe(survey.id);
+    expect(summaryResult.id).toBe(survey.publicId);
     expect(summaryResult.title).toBe('Full Survey');
     expect(summaryResult.description).toBe('A survey with all question types');
     expect(summaryResult.questions).toHaveLength(4);
@@ -398,5 +400,60 @@ describe('surveyService', () => {
     expect(openSummary.responses).toContain('Loved the options.');
     // No summary has been generated for this question yet.
     expect(openSummary.aiSummary).toBeNull();
+  });
+});
+
+describe('survey public ids', () => {
+  const BASE64URL = /^[A-Za-z0-9_-]{6}$/;
+
+  it('generates six base64url characters', () => {
+    const generated = Array.from({ length: 500 }, generateSurveyPublicId);
+
+    for (const publicId of generated) {
+      expect(publicId).toMatch(BASE64URL);
+    }
+
+    // Not a constant dressed up as a random value.
+    expect(new Set(generated).size).toBeGreaterThan(400);
+  });
+
+  it('gives every survey a public id and keeps the uuid off the wire', async () => {
+    const [user] = await db.insert(users).values({
+      email: 'public-id@example.com',
+      password: 'password',
+    }).returning();
+
+    const created = await createSurvey('Shareable', 'Desc', user.id);
+    expect(created.id).toMatch(BASE64URL);
+
+    // What `createSurvey` reports is the public id, and the uuid is a separate
+    // value that never appears in anything a caller receives.
+    const [stored] = await db.select().from(surveys).where(eq(surveys.publicId, created.id));
+    expect(stored.publicId).toBe(created.id);
+    expect(stored.id).not.toBe(created.id);
+
+    expect((await getSurvey(created.id)).id).toBe(created.id);
+    expect((await getAllSurveysForUser(user.id))[0].id).toBe(created.id);
+    expect(await resolveSurveyId(created.id)).toBe(stored.id);
+
+    // The uuid is no longer an address for the survey.
+    await expect(getSurvey(stored.id)).rejects.toThrow(NotFoundError);
+  });
+
+  it('issues a distinct public id to every survey', async () => {
+    const [user] = await db.insert(users).values({
+      email: 'public-id-unique@example.com',
+      password: 'password',
+    }).returning();
+
+    const created = await Promise.all(
+      Array.from({ length: 20 }, (_, index) => createSurvey(`Survey ${index}`, 'Desc', user.id))
+    );
+
+    expect(new Set(created.map(survey => survey.id)).size).toBe(created.length);
+  });
+
+  it('rejects a public id no survey holds', async () => {
+    await expect(resolveSurveyId('ZZZZZZ')).rejects.toThrow(NotFoundError);
   });
 });

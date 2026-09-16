@@ -43,6 +43,7 @@ export async function setup() {
 
       CREATE TABLE surveys (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        public_id varchar(6) NOT NULL UNIQUE,
         title varchar(255) NOT NULL,
         description text NOT NULL,
         created_at timestamp DEFAULT now() NOT NULL,

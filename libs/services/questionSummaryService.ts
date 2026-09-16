@@ -69,7 +69,7 @@ export async function getOpenEndedResponses(
  * environment is configured for.
  */
 export async function generateSummaryForQuestion(
-    surveyId: string,
+    surveyPublicId: string,
     questionId: string,
     userId: string,
     provider?: SummaryProvider,
@@ -83,7 +83,7 @@ export async function generateSummaryForQuestion(
     })
         .from(questions)
         .innerJoin(surveys, eq(questions.surveyId, surveys.id))
-        .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)))
+        .where(and(eq(questions.id, questionId), eq(surveys.publicId, surveyPublicId)))
         .limit(1);
 
     // A question on someone else's survey — or one that does not belong to the

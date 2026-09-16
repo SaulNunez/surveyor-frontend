@@ -81,7 +81,7 @@ describe('questionSummaryService', () => {
 
     const { provider, calls } = stubProvider();
 
-    const result = await generateSummaryForQuestion(survey.id, question.id, owner.id, provider);
+    const result = await generateSummaryForQuestion(survey.publicId, question.id, owner.id, provider);
 
     expect(result.summary).toBe('Most respondents mentioned **pricing**.');
     expect(result.provider).toBe('stub');
@@ -106,12 +106,12 @@ describe('questionSummaryService', () => {
     await seedAnswer(survey.id, question.id, 'a@example.com', 'The pricing is too high.');
 
     const first = stubProvider('First pass.');
-    await generateSummaryForQuestion(survey.id, question.id, owner.id, first.provider);
+    await generateSummaryForQuestion(survey.publicId, question.id, owner.id, first.provider);
 
     // A new answer arrives, then the owner regenerates.
     await seedAnswer(survey.id, question.id, 'b@example.com', 'Docs need work.');
     const second = stubProvider('Second pass.');
-    const regenerated = await generateSummaryForQuestion(survey.id, question.id, owner.id, second.provider);
+    const regenerated = await generateSummaryForQuestion(survey.publicId, question.id, owner.id, second.provider);
 
     expect(regenerated.summary).toBe('Second pass.');
     expect(regenerated.responseCount).toBe(2);
@@ -135,7 +135,7 @@ describe('questionSummaryService', () => {
     const { provider, calls } = stubProvider();
 
     await expect(
-      generateSummaryForQuestion(survey.id, question.id, otherUser.id, provider)
+      generateSummaryForQuestion(survey.publicId, question.id, otherUser.id, provider)
     ).rejects.toThrow(NotFoundError);
 
     // Ownership is checked before anything is spent.
@@ -155,7 +155,7 @@ describe('questionSummaryService', () => {
     const { provider } = stubProvider();
 
     await expect(
-      generateSummaryForQuestion(otherSurvey.id, question.id, owner.id, provider)
+      generateSummaryForQuestion(otherSurvey.publicId, question.id, owner.id, provider)
     ).rejects.toThrow(NotFoundError);
   });
 
@@ -173,7 +173,7 @@ describe('questionSummaryService', () => {
     const { provider, calls } = stubProvider();
 
     await expect(
-      generateSummaryForQuestion(survey.id, likert.id, owner.id, provider)
+      generateSummaryForQuestion(survey.publicId, likert.id, owner.id, provider)
     ).rejects.toThrow(InvalidOperationError);
     expect(calls).toHaveLength(0);
   });
@@ -184,7 +184,7 @@ describe('questionSummaryService', () => {
     const { provider, calls } = stubProvider();
 
     await expect(
-      generateSummaryForQuestion(survey.id, question.id, owner.id, provider)
+      generateSummaryForQuestion(survey.publicId, question.id, owner.id, provider)
     ).rejects.toThrow(InvalidOperationError);
     // No tokens spent on an empty question.
     expect(calls).toHaveLength(0);
@@ -199,7 +199,7 @@ describe('questionSummaryService', () => {
     expect(collected).toEqual(['Real feedback.']);
 
     const { provider } = stubProvider();
-    const result = await generateSummaryForQuestion(survey.id, question.id, owner.id, provider);
+    const result = await generateSummaryForQuestion(survey.publicId, question.id, owner.id, provider);
     expect(result.responseCount).toBe(1);
   });
 

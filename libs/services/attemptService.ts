@@ -1,16 +1,22 @@
 import { db } from "../db";
 import { Executor } from "../db/executor";
-import { attempts } from "../db/schema";
+import { attempts, surveys } from "../db/schema";
+import { resolveSurveyId } from "./surveyService";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { InvalidOperationError } from "../models/Errors/invalidOperationError";
 import { NotFoundError } from "../models/Errors/notFoundError";
 
 type AttemptRow = typeof attempts.$inferSelect;
 
-function toAttempt(attempt: AttemptRow) {
+/**
+ * `surveyPublicId` is passed in rather than read off the row: the attempt only
+ * stores the survey's uuid, and that is the one identifier that must not reach
+ * the client.
+ */
+function toAttempt(attempt: AttemptRow, surveyPublicId: string) {
     return {
         id: attempt.id,
-        survey: attempt.surveyId,
+        survey: surveyPublicId,
         startedAt: attempt.startedAt
     };
 }
@@ -22,7 +28,9 @@ function toAttempt(attempt: AttemptRow) {
  * `attempts_one_in_progress_per_user_survey` guarantees there is at most one
  * such row, so this does not have to guess which of several is current.
  */
-export async function getExistingAttempt(surveyId: string, userId: string, executor: Executor = db) {
+export async function getExistingAttempt(surveyPublicId: string, userId: string, executor: Executor = db) {
+    const surveyId = await resolveSurveyId(surveyPublicId, executor);
+
     const results = await executor.select()
         .from(attempts)
         .where(and(
@@ -33,7 +41,7 @@ export async function getExistingAttempt(surveyId: string, userId: string, execu
         .limit(1);
 
     const attempt = results[0];
-    return attempt ? toAttempt(attempt) : null;
+    return attempt ? toAttempt(attempt, surveyPublicId) : null;
 }
 
 /**
@@ -44,7 +52,9 @@ export async function getExistingAttempt(surveyId: string, userId: string, execu
  * pass a check, so the partial unique index arbitrates instead and the loser
  * reads back the winner's row.
  */
-export async function createNewAttempt(surveyId: string, userId: string, executor: Executor = db) {
+export async function createNewAttempt(surveyPublicId: string, userId: string, executor: Executor = db) {
+    const surveyId = await resolveSurveyId(surveyPublicId, executor);
+
     const inserted = await executor.insert(attempts)
         .values({ surveyId, userId, startedAt: new Date() })
         .onConflictDoNothing({
@@ -56,11 +66,11 @@ export async function createNewAttempt(surveyId: string, userId: string, executo
         .returning();
 
     if (inserted.length > 0) {
-        return toAttempt(inserted[0]);
+        return toAttempt(inserted[0], surveyPublicId);
     }
 
     // Lost the race: the concurrent save's attempt is the in-progress one.
-    const existingAttempt = await getExistingAttempt(surveyId, userId, executor);
+    const existingAttempt = await getExistingAttempt(surveyPublicId, userId, executor);
     if (!existingAttempt) {
         throw new InvalidOperationError('Could not start an attempt for this survey');
     }
@@ -71,15 +81,15 @@ export async function createNewAttempt(surveyId: string, userId: string, executo
  * Discards the in-progress attempt and starts a fresh one in a single
  * transaction, so a restart cannot leave the user with no attempt at all.
  */
-export async function restartAttempt(surveyId: string, userId: string) {
+export async function restartAttempt(surveyPublicId: string, userId: string) {
     return await db.transaction(async (tx) => {
-        const existingAttempt = await getExistingAttempt(surveyId, userId, tx);
+        const existingAttempt = await getExistingAttempt(surveyPublicId, userId, tx);
 
         if (existingAttempt) {
             await tx.delete(attempts).where(eq(attempts.id, existingAttempt.id));
         }
 
-        return await createNewAttempt(surveyId, userId, tx);
+        return await createNewAttempt(surveyPublicId, userId, tx);
     });
 }
 
@@ -105,13 +115,19 @@ export async function deleteExistingAttempt(attemptId: string, userId: string, e
 }
 
 export async function completeExistingAttempt(attemptId: string, userId: string, executor: Executor = db) {
-    const results = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
+    // Joined so the completed attempt can be reported with the survey's public
+    // id; the attempt row only carries the uuid.
+    const results = await executor.select({ attempt: attempts, surveyPublicId: surveys.publicId })
+        .from(attempts)
+        .innerJoin(surveys, eq(surveys.id, attempts.surveyId))
+        .where(eq(attempts.id, attemptId))
+        .limit(1);
 
     if (results.length === 0) {
         throw new NotFoundError('Attempt not found');
     }
 
-    const existingAttempt = results[0];
+    const { attempt: existingAttempt, surveyPublicId } = results[0];
 
     if (existingAttempt.completedAt) {
         return null;
@@ -129,7 +145,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string,
     const completedAttempt = updated[0];
 
     return {
-        ...toAttempt(completedAttempt),
+        ...toAttempt(completedAttempt, surveyPublicId),
         completedAt: completedAttempt.completedAt
     };
 }

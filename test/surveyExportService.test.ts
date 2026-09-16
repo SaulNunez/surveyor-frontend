@@ -67,7 +67,7 @@ describe('surveyExportService', () => {
   it('exports completed attempts only, with display values and summaries', async () => {
     const { owner, survey, open, mcq, binary, likert, first, second } = await seedSurvey();
 
-    const data = await getSurveyExportData(survey.id, owner.id);
+    const data = await getSurveyExportData(survey.publicId, owner.id);
 
     expect(data.survey.title).toBe('Export Survey');
     expect(data.attempts.map(a => a.attemptId).sort()).toEqual([first.id, second.id].sort());
@@ -106,13 +106,13 @@ describe('surveyExportService', () => {
     const { survey } = await seedSurvey();
     const [other] = await db.insert(users).values({ email: 'other@example.com', password: 'password' }).returning();
 
-    await expect(getSurveyExportData(survey.id, other.id)).rejects.toThrow(NotFoundError);
-    await expect(getSurveyExportData('00000000-0000-0000-0000-000000000000', other.id)).rejects.toThrow(NotFoundError);
+    await expect(getSurveyExportData(survey.publicId, other.id)).rejects.toThrow(NotFoundError);
+    await expect(getSurveyExportData('ZZZZZZ', other.id)).rejects.toThrow(NotFoundError);
   });
 
   it('builds an ods file with summary and responses sheets', async () => {
     const { owner, survey, first } = await seedSurvey();
-    const data = await getSurveyExportData(survey.id, owner.id);
+    const data = await getSurveyExportData(survey.publicId, owner.id);
 
     const files = unzipSync(await buildSurveyOds(data));
 

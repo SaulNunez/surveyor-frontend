@@ -119,15 +119,18 @@ function summarize(question: QuestionRow, answers: ExportAnswer[]): ExportQuesti
  * `NotFoundError` so the API does not leak the survey's existence.
  */
 export async function getSurveyExportData(
-    surveyId: string,
+    surveyPublicId: string,
     userId: string,
     executor: Executor = db
 ): Promise<SurveyExportData> {
-    const surveyResults = await executor.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+    const surveyResults = await executor.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
     const survey = surveyResults[0];
     if (!survey || survey.userId !== userId) {
         throw new NotFoundError('Survey not found');
     }
+
+    // Everything below reaches related rows through the internal uuid.
+    const surveyId = survey.id;
 
     const questionRows = await executor.select().from(questions).where(eq(questions.surveyId, surveyId));
 
@@ -164,7 +167,7 @@ export async function getSurveyExportData(
     }
 
     return {
-        survey: { id: survey.id, title: survey.title, description: survey.description },
+        survey: { id: survey.publicId, title: survey.title, description: survey.description },
         questions: questionRows.map(question => summarize(question, answersByQuestion.get(question.id) ?? [])),
         attempts: attemptRows.map(attempt => ({
             attemptId: attempt.id,
