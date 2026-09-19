@@ -6,7 +6,7 @@ import { SurveyDao } from "@/libs/models/frontend/survey";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import { 
   Send, 
@@ -16,7 +16,8 @@ import {
   Sliders, 
   ArrowLeft,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from "lucide-react";
 import Link from "next/link";
 
@@ -46,8 +47,11 @@ export default function SurveyAnswer() {
     enabled: !!surveyId
   });
 
+  // `enabled` alone gates the fetch. Keying on the login state as well would
+  // swap in a fresh, empty cache entry the moment a guest signs in mid-answer,
+  // taking the answers they had just typed with it.
   const { data: attemptData, refetch: refetchAttempt } = useQuery({
-    queryKey: ['surveyAttempt', surveyId, isLoggedIn],
+    queryKey: ['surveyAttempt', surveyId],
     queryFn: () => fetch(`/api/survey/${surveyId}/attempt`).then(res => {
       if (!res.ok) throw new Error("Failed to fetch attempt");
       return res.json();
@@ -58,7 +62,7 @@ export default function SurveyAnswer() {
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isResetting, setIsResetting] = useState(false);
   const [hasInitialAttempt, setHasInitialAttempt] = useState<boolean | null>(null);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error" | "needs-account">("idle");
 
   // Answers changed since the last save, held until the debounce fires so that
   // typing produces one batched request instead of one per keystroke.
@@ -67,21 +71,73 @@ export default function SurveyAnswer() {
   // The attempt these saves belong to. Sent with each save so the server can
   // reject writes aimed at an attempt that was restarted in another tab.
   const attemptId = useRef<string | null>(null);
+  // Set by the paths that deliberately throw answers away — Start Anew, and a
+  // rejected save — so the next server response replaces local state instead
+  // of being merged into it.
+  const discardLocalResponses = useRef(false);
+  // A burst of keystrokes must mint exactly one guest account, so every caller
+  // in the burst awaits the same sign-in. Assigned before the first await for
+  // that reason.
+  const anonymousSignIn = useRef<Promise<boolean> | null>(null);
+  // A guest account minted during this page load is brand new, so the attempt
+  // that appears a moment later is the one being started right now — not one
+  // to announce as resumed.
+  const mintedGuestHere = useRef(false);
+
+  const canAnswerAnonymously = survey?.openToAnyone === true;
+
+  /**
+   * Makes sure there is an account to save against, signing the visitor in as
+   * a guest if the survey allows it. Returns false when answers cannot be
+   * saved at all, which is the caller's cue to say so rather than fail quietly.
+   */
+  const ensureAnswerIdentity = useCallback(async () => {
+    if (status === "authenticated") return true;
+    if (status === "loading") return false;
+    if (!canAnswerAnonymously) return false;
+
+    if (!anonymousSignIn.current) {
+      anonymousSignIn.current = signIn("anonymous", { surveyId, redirect: false })
+        .then(result => !!result && !result.error)
+        .catch(() => false);
+    }
+
+    const signedIn = await anonymousSignIn.current;
+    if (signedIn) mintedGuestHere.current = true;
+    // Cleared only on failure, so a later save can try again; a success stays
+    // cached and no second account is ever minted.
+    if (!signedIn) anonymousSignIn.current = null;
+    return signedIn;
+  }, [status, canAnswerAnonymously, surveyId]);
 
   useEffect(() => {
     if (attemptData !== undefined && hasInitialAttempt === null) {
-      setHasInitialAttempt(!!attemptData?.attempt);
+      setHasInitialAttempt(!mintedGuestHere.current && !!attemptData?.attempt);
     }
   }, [attemptData, hasInitialAttempt]);
 
   useEffect(() => {
-    attemptId.current = attemptData?.attempt?.id ?? null;
+    // Undefined means the query has not answered yet — for a guest, that is
+    // every render before they sign in. Clearing state here would wipe what
+    // they are in the middle of typing.
+    if (attemptData === undefined) return;
 
-    if (attemptData?.responses) {
-      setResponses(attemptData.responses);
-    } else {
-      setResponses({});
+    attemptId.current = attemptData.attempt?.id ?? null;
+
+    if (discardLocalResponses.current) {
+      discardLocalResponses.current = false;
+      setResponses(attemptData.responses ?? {});
+      return;
     }
+
+    // Merge rather than replace: answers typed while the request was in flight
+    // are newer than what came back, and anything still queued for saving has
+    // not reached the server at all yet.
+    setResponses(prev => ({
+      ...prev,
+      ...(attemptData.responses ?? {}),
+      ...pendingAnswers.current,
+    }));
   }, [attemptData]);
 
   const flushPendingAnswers = useCallback(async () => {
@@ -93,6 +149,14 @@ export default function SurveyAnswer() {
     const answers = pendingAnswers.current;
     if (Object.keys(answers).length === 0) return;
     pendingAnswers.current = {};
+
+    if (!await ensureAnswerIdentity()) {
+      // Hold onto the answers the same way a failed request does, so they are
+      // saved if the visitor signs in without reloading.
+      pendingAnswers.current = { ...answers, ...pendingAnswers.current };
+      setSaveState("needs-account");
+      return;
+    }
 
     setSaveState("saving");
     try {
@@ -107,7 +171,15 @@ export default function SurveyAnswer() {
         // belong to an attempt that no longer exists.
         setSaveState("error");
         alert("This attempt was restarted somewhere else. Reloading your progress.");
+        discardLocalResponses.current = true;
         await refetchAttempt();
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        // The survey does not accept this account. Retrying cannot help, so
+        // the answers are dropped rather than queued forever.
+        setSaveState("needs-account");
         return;
       }
 
@@ -124,7 +196,7 @@ export default function SurveyAnswer() {
       pendingAnswers.current = { ...answers, ...pendingAnswers.current };
       setSaveState("error");
     }
-  }, [surveyId, refetchAttempt]);
+  }, [surveyId, refetchAttempt, ensureAnswerIdentity]);
 
   // Don't strand answers the user typed just before navigating away.
   useEffect(() => {
@@ -156,6 +228,7 @@ export default function SurveyAnswer() {
         attemptId.current = body.attempt?.id ?? null;
         setResponses({});
         setHasInitialAttempt(false);
+        discardLocalResponses.current = true;
         await refetchAttempt();
       } else {
         alert("Failed to reset attempt. Please try again.");
@@ -171,7 +244,12 @@ export default function SurveyAnswer() {
   const handleResponse = (id: string, value: any) => {
     setResponses((prev) => ({ ...prev, [id]: value }));
 
-    if (!isLoggedIn) return;
+    // A visitor who cannot be signed in gets told so, rather than watching
+    // their answers vanish on reload with nothing having said a word.
+    if (!isLoggedIn && !canAnswerAnonymously) {
+      setSaveState("needs-account");
+      return;
+    }
 
     pendingAnswers.current[id] = value;
     setSaveState("saving");
@@ -205,6 +283,8 @@ export default function SurveyAnswer() {
       if (response.ok) {
         alert("Survey submitted successfully!");
         router.push("/surveys");
+      } else if (response.status === 401 || response.status === 403) {
+        alert("Sign in to submit your answers.");
       } else {
         const text = await response.text();
         alert(`Failed to submit survey: ${text}`);
@@ -251,6 +331,57 @@ export default function SurveyAnswer() {
             <ArrowLeft size={16} /> Back to Surveys
           </Link>
         </div>
+
+        {/* Guest Account Banner */}
+        {session?.user?.isAnonymous && (
+          canAnswerAnonymously ? (
+            <div className="mb-6 bg-blue-50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/40 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-xl">
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-blue-900 dark:text-blue-100">
+                    You&apos;re answering as a guest
+                  </h3>
+                  <p className="text-xs text-blue-700/80 dark:text-blue-300/70 mt-0.5">
+                    Your answers are saved to a guest account <strong>on this device</strong>.
+                    Create an account to keep them.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/register"
+                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+              >
+                Create account
+              </Link>
+            </div>
+          ) : (
+            <div className="mb-6 bg-red-50 dark:bg-red-950/20 border border-red-200/80 dark:border-red-900/40 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-xl">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-red-900 dark:text-red-100">
+                    This survey needs a full account
+                  </h3>
+                  <p className="text-xs text-red-700/80 dark:text-red-300/70 mt-0.5">
+                    Guest accounts cannot answer it, so nothing you type here is being
+                    saved. Create an account to answer.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/register"
+                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+              >
+                Create account
+              </Link>
+            </div>
+          )
+        )}
 
         {/* Active Attempt Warning Banner */}
         {hasInitialAttempt && attemptData?.attempt && (
@@ -432,14 +563,23 @@ export default function SurveyAnswer() {
           <div className="text-left">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Ready to send?</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">Make sure you have completed all questions before sending.</p>
-            {isLoggedIn && saveState !== "idle" && (
+            {saveState !== "idle" && (
               <p
                 role="status"
-                className={`text-xs mt-1 ${saveState === "error" ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}
+                className={`text-xs mt-1 ${saveState === "error" || saveState === "needs-account" ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}
               >
                 {saveState === "saving" && "Saving your progress..."}
                 {saveState === "saved" && "Progress saved."}
                 {saveState === "error" && "Could not save your progress. It will be retried."}
+                {saveState === "needs-account" && (
+                  <>
+                    Your answers are not being saved.{" "}
+                    <Link href="/login" className="underline font-semibold">
+                      Sign in to save them
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             )}
           </div>

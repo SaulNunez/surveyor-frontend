@@ -19,9 +19,14 @@ export async function setup() {
     await db.execute(sql`
       CREATE TABLE users (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        email varchar(255) NOT NULL UNIQUE,
-        password varchar(255) NOT NULL,
-        display_name varchar(255)
+        email varchar(255) UNIQUE,
+        password varchar(255),
+        display_name varchar(255),
+        created_at timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT users_anonymous_or_credentialed CHECK (
+          (email IS NULL AND password IS NULL)
+          OR (email IS NOT NULL AND password IS NOT NULL)
+        )
       );
 
       CREATE TABLE clients (
@@ -47,6 +52,7 @@ export async function setup() {
         title varchar(255) NOT NULL,
         description text NOT NULL,
         created_at timestamp DEFAULT now() NOT NULL,
+        open_to_anyone boolean DEFAULT false NOT NULL,
         user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
       );
 

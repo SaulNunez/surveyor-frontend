@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { db } from '../libs/db';
 import { users, surveys, questions, attempts, responses } from '../libs/db/schema';
-import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey, getOptionSelectionCountForQuestion, getLikertScaleRatingCountForQuestion, getBinaryChoiceCountForQuestion, getSurveySummary, resolveSurveyId } from '../libs/services/surveyService';
+import { getAllSurveysForUser, getSurvey, createSurvey, editSurvey, deleteSurvey, getOptionSelectionCountForQuestion, getLikertScaleRatingCountForQuestion, getBinaryChoiceCountForQuestion, getSurveySummary, resolveSurveyId, isSurveyOpenToAnyone } from '../libs/services/surveyService';
 import { NotFoundError } from '../libs/models/Errors/notFoundError';
 import { generateSurveyPublicId } from '../libs/db/publicId';
 import { eq } from 'drizzle-orm';
@@ -57,12 +57,12 @@ describe('surveyService', () => {
     expect(allSurveys[0].id).toBe(surveyId);
 
     // 6. Test editSurvey
-    const editResult = await editSurvey(surveyId, userId, 'Updated Title', 'Updated Desc');
+    const editResult = await editSurvey(surveyId, userId, 'Updated Title', 'Updated Desc', false);
     expect(editResult.title).toBe('Updated Title');
     expect(editResult.description).toBe('Updated Desc');
 
     // 7. Test editSurvey not found / wrong user
-    await expect(editSurvey('ZZZZZZ', userId, 'T', 'D')).rejects.toThrow(NotFoundError);
+    await expect(editSurvey('ZZZZZZ', userId, 'T', 'D', false)).rejects.toThrow(NotFoundError);
     
     // Seed another user to test wrong user access
     const [otherUser] = await db.insert(users).values({
@@ -70,7 +70,7 @@ describe('surveyService', () => {
       password: 'password',
     }).returning();
     
-    await expect(editSurvey(surveyId, otherUser.id, 'T', 'D')).rejects.toThrow(NotFoundError);
+    await expect(editSurvey(surveyId, otherUser.id, 'T', 'D', false)).rejects.toThrow(NotFoundError);
 
     // 8. Test deleteSurvey
     const deleteResult = await deleteSurvey(surveyId, userId);
@@ -455,5 +455,32 @@ describe('survey public ids', () => {
 
   it('rejects a public id no survey holds', async () => {
     await expect(resolveSurveyId('ZZZZZZ')).rejects.toThrow(NotFoundError);
+  });
+
+  it('should record and change whether a survey is open to anyone', async () => {
+    const [user] = await db.insert(users).values({
+      email: 'open@example.com',
+      password: 'password',
+    }).returning();
+
+    // A survey is closed unless it is opened deliberately.
+    const closed = await createSurvey('Closed', 'Desc', user.id);
+    expect(closed.openToAnyone).toBe(false);
+    expect(await isSurveyOpenToAnyone(closed.id)).toBe(false);
+    expect((await getSurvey(closed.id)).openToAnyone).toBe(false);
+
+    const open = await createSurvey('Open', 'Desc', user.id, true);
+    expect(open.openToAnyone).toBe(true);
+    expect(await isSurveyOpenToAnyone(open.id)).toBe(true);
+
+    // The author can close one that was opened by mistake, and reopen it.
+    const closedAgain = await editSurvey(open.id, user.id, 'Open', 'Desc', false);
+    expect(closedAgain.openToAnyone).toBe(false);
+    expect(await isSurveyOpenToAnyone(open.id)).toBe(false);
+
+    const reopened = await editSurvey(open.id, user.id, 'Open', 'Desc', true);
+    expect(reopened.openToAnyone).toBe(true);
+
+    await expect(isSurveyOpenToAnyone('ZZZZZZ')).rejects.toThrow(NotFoundError);
   });
 });

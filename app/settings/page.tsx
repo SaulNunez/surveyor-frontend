@@ -8,6 +8,11 @@ export default async function Settings() {
   if (!user) {
     redirect("/login");
   }
+  // A guest account has no email and no password to show, and every form on
+  // this page would be refused by the API. Send them where they can fix that.
+  if (user.isAnonymous) {
+    redirect("/register");
+  }
   return (
     <div className="container mx-auto">
       <h1 className="text-3xl font-bold">Settings</h1>

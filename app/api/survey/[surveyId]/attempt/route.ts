@@ -6,6 +6,7 @@ import { NotFoundError } from "@/libs/models/Errors/notFoundError";
 import { QuestionDao } from "@/libs/models/frontend/question";
 import { QuestionResponseInput } from "@/libs/models/frontend/result";
 import { db } from "@/libs/db";
+import { rejectGuestOnClosedSurvey } from "./_guard";
 
 type StoredResponse = Awaited<ReturnType<typeof getResponsesForAttempt>>[number];
 
@@ -84,6 +85,12 @@ function jsonResponse(body: unknown, status: number) {
     });
 }
 
+/**
+ * Deliberately not guarded against guests on a closed survey the way the
+ * writing handlers are: handing someone back their own attempt leaks nothing,
+ * and failing here would only add error noise to a query the client already
+ * knows how to skip.
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     const session = await auth();
     if (!session?.user) {
@@ -123,6 +130,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
 
     try {
         const { surveyId } = await params;
+
+        const refusal = await rejectGuestOnClosedSurvey(session, surveyId);
+        if (refusal) return refusal;
+
         const attempt = await getExistingAttempt(surveyId, session.user.id);
         if (!attempt) {
             return new Response("No active attempt found", { status: 404 });
@@ -156,6 +167,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
 
     try {
         const { surveyId } = await params;
+
+        const refusal = await rejectGuestOnClosedSurvey(session, surveyId);
+        if (refusal) return refusal;
+
         const body = await request.json();
 
         if (typeof body !== "object" || body === null) {
@@ -215,6 +230,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
 
     try {
         const { surveyId } = await params;
+
+        const refusal = await rejectGuestOnClosedSurvey(session, surveyId);
+        if (refusal) return refusal;
+
         const attempt = await getExistingAttempt(surveyId, session.user.id);
         if (!attempt) {
             return new Response("No active attempt found to submit.", { status: 404 });
