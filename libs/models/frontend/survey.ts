@@ -3,6 +3,12 @@ import { QuestionDao, QuestionInput } from "./question";
 export interface SurveyInput {
     title: string,
     description: string,
+    /**
+     * Whether people without an account may answer. This gates *answering*
+     * only — a survey's questions are readable by anyone holding its public id
+     * either way.
+     */
+    openToAnyone: boolean,
     questions: QuestionInput[]
 }
 
@@ -11,6 +17,12 @@ export interface SurveyDao {
     id: string,
     title: string,
     description: string,
+    /**
+     * Whether people without an account may answer. This gates *answering*
+     * only — a survey's questions are readable by anyone holding its public id
+     * either way.
+     */
+    openToAnyone: boolean,
     questions: QuestionDao[]
 }
 
@@ -81,6 +93,8 @@ export interface SurveySummaryDao {
     id: string,
     title: string,
     description: string
+    /** Whether people without an account may answer. The author can change it. */
+    openToAnyone: boolean,
     questions: QuestionSummary[],
     aiSummaries: AiSummaryAvailability,
 }

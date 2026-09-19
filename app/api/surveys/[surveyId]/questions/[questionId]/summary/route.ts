@@ -17,6 +17,13 @@ export async function POST(
             return new Response("Unauthorized", { status: 401 });
         }
 
+        // A guest owns no surveys, so the ownership check below would refuse
+        // this anyway — but "not found" is a poor answer to someone who simply
+        // needs an account.
+        if (session.user.isAnonymous) {
+            return new Response("Guest accounts cannot view survey results. Register to create your own surveys.", { status: 403 });
+        }
+
         const { surveyId, questionId } = await params;
         const summary = await generateSummaryForQuestion(surveyId, questionId, session.user.id);
 

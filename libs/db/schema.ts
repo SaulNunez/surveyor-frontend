@@ -1,14 +1,29 @@
-import { pgTable, uuid, text, varchar, timestamp, boolean, integer, bigint, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, varchar, timestamp, boolean, integer, bigint, uniqueIndex, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { generateSurveyPublicId, SURVEY_PUBLIC_ID_LENGTH } from './publicId';
 
 // Users Table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  password: varchar('password', { length: 255 }).notNull(),
+  // Null on a guest account: a real user row minted the moment someone answers
+  // an open survey without signing in. Registering fills these in on this same
+  // row, so every attempt and response already recorded carries over. Postgres
+  // treats NULLs as distinct under UNIQUE, so any number of guests coexist
+  // under `users_email_unique`.
+  email: varchar('email', { length: 255 }).unique(),
+  password: varchar('password', { length: 255 }),
   displayName: varchar('display_name', { length: 255 }),
-});
+  // Guest rows accumulate; without this there is no column to age them by.
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  // "Is this account anonymous?" is read off the row (`password is null`)
+  // rather than stored, so it cannot drift out of step with the credentials.
+  // This is what makes that derivation safe: a row is either fully
+  // credentialed or fully anonymous, never half of each.
+  check('users_anonymous_or_credentialed',
+    sql`(${table.email} is null and ${table.password} is null)
+     or (${table.email} is not null and ${table.password} is not null)`),
+]);
 
 // Clients Table
 export const clients = pgTable('clients', {
@@ -49,6 +64,9 @@ export const surveys = pgTable('surveys', {
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  // Gates anonymous *answering* only. Survey content stays world-readable by
+  // public id either way — this is about who may record an attempt.
+  openToAnyone: boolean('open_to_anyone').notNull().default(false),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
