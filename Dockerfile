@@ -48,6 +48,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
+# Migrations are applied at startup (instrumentation.ts) and read by path, so
+# standalone output tracing does not pick them up.
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
