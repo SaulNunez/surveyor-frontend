@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { restartAttempt } from "@/libs/services/attemptService";
+import { NotFoundError } from "@/libs/models/Errors/notFoundError";
 
 /**
  * Discards the in-progress attempt and starts a fresh one atomically, so a
@@ -20,6 +21,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
             headers: { "Content-Type": "application/json" }
         });
     } catch (error) {
+        if (error instanceof NotFoundError) {
+            return new Response("Survey not found", { status: 404 });
+        }
         const message = error instanceof Error ? error.message : "Unexpected error";
         return new Response(message, { status: 500 });
     }

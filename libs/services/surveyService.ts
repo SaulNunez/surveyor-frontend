@@ -1,18 +1,19 @@
 import { NotFoundError } from "../models/Errors/notFoundError";
 import { db } from "../db";
 import { surveys, questions, questionSummaries, responses } from "../db/schema";
+import { generateSurveyPublicId } from "../db/publicId";
 import { eq, and, isNotNull, ne, count, sql } from "drizzle-orm";
 import { QuestionSummary, SurveySummaryDao } from "../models/frontend/survey";
 import { Executor } from "../db/executor";
 import { resolveAiProviderConfig } from "./ai";
 
 /**
- * Load a survey the given user owns, or throw. A survey belonging to someone
- * else is reported as missing rather than forbidden, so the API does not leak
- * which survey ids exist.
+ * Load a survey the given user owns, by its public id, or throw. A survey
+ * belonging to someone else is reported as missing rather than forbidden, so
+ * the API does not leak which survey ids exist.
  */
-export async function assertSurveyOwnedBy(surveyId: string, userId: string, executor: Executor = db) {
-    const results = await executor.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+export async function assertSurveyOwnedBy(surveyPublicId: string, userId: string, executor: Executor = db) {
+    const results = await executor.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
 
     if (results.length === 0 || results[0].userId !== userId) {
         throw new NotFoundError('Survey not found');
@@ -21,19 +22,49 @@ export async function assertSurveyOwnedBy(surveyId: string, userId: string, exec
     return results[0];
 }
 
+// Postgres' unique_violation. `createSurvey` retries on it rather than
+// check-then-insert, the same way attempts are created.
+const UNIQUE_VIOLATION = '23505';
+
+// Six base64url characters leave room for collisions, so a create that loses
+// the race for a code tries again with a fresh one. Ten attempts is far more
+// than a table of this size will ever need.
+const PUBLIC_ID_ATTEMPTS = 10;
+
+/**
+ * Translates the six-character public id that appears in URLs into the uuid
+ * rows are keyed by.
+ *
+ * Services that only need to read the survey itself filter on `publicId`
+ * directly; this is for the ones that need the internal id to reach related
+ * rows (questions, attempts).
+ */
+export async function resolveSurveyId(publicId: string, executor: Executor = db) {
+    const results = await executor.select({ id: surveys.id })
+        .from(surveys)
+        .where(eq(surveys.publicId, publicId))
+        .limit(1);
+
+    if (results.length === 0) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    return results[0].id;
+}
+
 export async function getAllSurveysForUser(userId: string) {
     const results = await db.select().from(surveys).where(eq(surveys.userId, userId));
 
     return results.map(survey => ({
-        id: survey.id,
+        id: survey.publicId,
         title: survey.title,
         description: survey.description,
         createdAt: survey.createdAt
     }));
 }
 
-export async function getSurvey(surveyId: string) {
-    const results = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+export async function getSurvey(surveyPublicId: string) {
+    const results = await db.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
 
     if (results.length === 0) {
         throw new NotFoundError('Survey not found');
@@ -41,7 +72,7 @@ export async function getSurvey(surveyId: string) {
 
     const survey = results[0];
     return {
-        id: survey.id,
+        id: survey.publicId,
         title: survey.title,
         description: survey.description,
         createdAt: survey.createdAt
@@ -49,40 +80,60 @@ export async function getSurvey(surveyId: string) {
 }
 
 export async function createSurvey(title: string, description: string, userId: string) {
-    const results = await db.insert(surveys).values({
-        title,
-        description,
-        userId
-    }).returning();
+    for (let attempt = 0; attempt < PUBLIC_ID_ATTEMPTS; attempt++) {
+        try {
+            const results = await db.insert(surveys).values({
+                publicId: generateSurveyPublicId(),
+                title,
+                description,
+                userId
+            }).returning();
 
-    const survey = results[0];
-    return {
-        id: survey.id,
-        title: survey.title,
-        description: survey.description
-    };
+            const survey = results[0];
+            return {
+                id: survey.publicId,
+                title: survey.title,
+                description: survey.description
+            };
+        } catch (error) {
+            // Another survey already holds this code. Nothing about the row is
+            // wrong, so draw a new code and insert again.
+            if (!isPublicIdCollision(error)) {
+                throw error;
+            }
+        }
+    }
+
+    throw new Error('Could not allocate a public id for this survey');
 }
 
-export async function editSurvey(surveyId: string, userId: string, title: string, description: string) {
-    await assertSurveyOwnedBy(surveyId, userId);
+function isPublicIdCollision(error: unknown) {
+    return typeof error === 'object'
+        && error !== null
+        && (error as { code?: string }).code === UNIQUE_VIOLATION
+        && String((error as { constraint?: string }).constraint ?? '').includes('public_id');
+}
+
+export async function editSurvey(surveyPublicId: string, userId: string, title: string, description: string) {
+    const survey = await assertSurveyOwnedBy(surveyPublicId, userId);
 
     const updated = await db.update(surveys)
         .set({ title, description })
-        .where(eq(surveys.id, surveyId))
+        .where(eq(surveys.id, survey.id))
         .returning();
 
     const updatedSurvey = updated[0];
     return {
-        id: updatedSurvey.id,
+        id: updatedSurvey.publicId,
         title: updatedSurvey.title,
         description: updatedSurvey.description
     };
 }
 
-export async function deleteSurvey(surveyId: string, userId: string) {
-    await assertSurveyOwnedBy(surveyId, userId);
+export async function deleteSurvey(surveyPublicId: string, userId: string) {
+    const survey = await assertSurveyOwnedBy(surveyPublicId, userId);
 
-    await db.delete(surveys).where(eq(surveys.id, surveyId));
+    await db.delete(surveys).where(eq(surveys.id, survey.id));
     return true;
 }
 
@@ -242,8 +293,8 @@ export async function getBinaryChoiceCountForQuestion(questionId: string) {
     return Object.values(countMap);
 }
 
-export async function getSurveySummary(surveyId: string): Promise<SurveySummaryDao> {
-    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+export async function getSurveySummary(surveyPublicId: string): Promise<SurveySummaryDao> {
+    const surveyResults = await db.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
 
     if (surveyResults.length === 0) {
         throw new NotFoundError("Survey not found");
@@ -253,14 +304,14 @@ export async function getSurveySummary(surveyId: string): Promise<SurveySummaryD
 
     const questionResults = await db.select()
         .from(questions)
-        .where(eq(questions.surveyId, surveyId));
+        .where(eq(questions.surveyId, survey.id));
 
     // One lookup for every stored AI summary in the survey, rather than a
     // query per open-ended question.
     const storedSummaries = await db.select()
         .from(questionSummaries)
         .innerJoin(questions, eq(questionSummaries.questionId, questions.id))
-        .where(eq(questions.surveyId, surveyId));
+        .where(eq(questions.surveyId, survey.id));
 
     const summaryByQuestionId = new Map(
         storedSummaries.map(row => [row.question_summaries.questionId, row.question_summaries])
@@ -409,7 +460,7 @@ export async function getSurveySummary(surveyId: string): Promise<SurveySummaryD
     }
 
     return {
-        id: survey.id,
+        id: survey.publicId,
         title: survey.title,
         description: survey.description,
         questions: questionsSummaries,

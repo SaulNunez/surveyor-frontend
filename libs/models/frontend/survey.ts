@@ -7,6 +7,7 @@ export interface SurveyInput {
 }
 
 export interface SurveyDao {
+    /** The survey's six-character public id — what the URL carries. */
     id: string,
     title: string,
     description: string,
@@ -76,6 +77,7 @@ export interface AiSummaryAvailability {
 }
 
 export interface SurveySummaryDao {
+    /** The survey's six-character public id — what the URL carries. */
     id: string,
     title: string,
     description: string

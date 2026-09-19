@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, varchar, timestamp, boolean, integer, bigint, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { generateSurveyPublicId, SURVEY_PUBLIC_ID_LENGTH } from './publicId';
 
 // Users Table
 export const users = pgTable('users', {
@@ -37,6 +38,14 @@ export const refreshTokens = pgTable('refresh_tokens', {
 // Surveys Table
 export const surveys = pgTable('surveys', {
   id: uuid('id').primaryKey().defaultRandom(),
+  // The identifier the survey is known by outside the database — six base64url
+  // characters, short enough to share. Every foreign key still points at `id`;
+  // `publicId` is what appears in URLs and in the wire types, so the uuid never
+  // leaves the server. Services take the public id and resolve it here.
+  publicId: varchar('public_id', { length: SURVEY_PUBLIC_ID_LENGTH })
+    .notNull()
+    .unique()
+    .$defaultFn(generateSurveyPublicId),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

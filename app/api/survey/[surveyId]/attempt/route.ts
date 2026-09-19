@@ -199,6 +199,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
 
         return jsonResponse({ success: true, attemptId: result.attemptId }, 200);
     } catch (error) {
+        if (error instanceof NotFoundError) {
+            return new Response("Survey not found", { status: 404 });
+        }
         const message = error instanceof Error ? error.message : "Unexpected error";
         return new Response(message, { status: 500 });
     }

@@ -21,20 +21,20 @@ describe('attemptService', () => {
     }).returning();
 
     // 2. No attempt exists yet, so there is nothing to resume
-    expect(await getExistingAttempt(survey.id, user.id)).toBeNull();
+    expect(await getExistingAttempt(survey.publicId, user.id)).toBeNull();
 
     // 3. createNewAttempt starts the first attempt
-    const firstAttempt = await createNewAttempt(survey.id, user.id);
+    const firstAttempt = await createNewAttempt(survey.publicId, user.id);
     expect(firstAttempt.id).toBeDefined();
-    expect(firstAttempt.survey).toBe(survey.id);
+    expect(firstAttempt.survey).toBe(survey.publicId);
 
     // 4. That attempt is now the one to resume
-    const existing = await getExistingAttempt(survey.id, user.id);
+    const existing = await getExistingAttempt(survey.publicId, user.id);
     expect(existing).not.toBeNull();
     expect(existing!.id).toBe(firstAttempt.id);
 
     // 5. Calling createNewAttempt again resumes it rather than starting over
-    const resumed = await createNewAttempt(survey.id, user.id);
+    const resumed = await createNewAttempt(survey.publicId, user.id);
     expect(resumed.id).toBe(firstAttempt.id);
     const allAttempts = await db.select().from(attempts).where(eq(attempts.surveyId, survey.id));
     expect(allAttempts).toHaveLength(1);
@@ -43,10 +43,10 @@ describe('attemptService', () => {
     const completed = await completeExistingAttempt(firstAttempt.id, user.id);
     expect(completed).not.toBeNull();
     expect(completed!.completedAt).toBeDefined();
-    expect(await getExistingAttempt(survey.id, user.id)).toBeNull();
+    expect(await getExistingAttempt(survey.publicId, user.id)).toBeNull();
 
     // 7. Once the latest attempt is completed, a new one is started
-    const secondAttempt = await createNewAttempt(survey.id, user.id);
+    const secondAttempt = await createNewAttempt(survey.publicId, user.id);
     expect(secondAttempt.id).not.toBe(firstAttempt.id);
 
     // 8. completeExistingAttempt on an already completed attempt returns null
@@ -59,7 +59,7 @@ describe('attemptService', () => {
     expect(await deleteExistingAttempt(secondAttempt.id, user.id)).toBe(true);
     await expect(deleteExistingAttempt(secondAttempt.id, user.id)).rejects.toThrow(NotFoundError);
 
-    const restarted = await createNewAttempt(survey.id, user.id);
+    const restarted = await createNewAttempt(survey.publicId, user.id);
     expect(restarted.id).not.toBe(secondAttempt.id);
     expect(restarted.id).not.toBe(firstAttempt.id);
 
@@ -86,7 +86,7 @@ describe('attemptService', () => {
     // Several saves racing to start the first attempt. Before the partial
     // unique index each of these inserted its own attempt row.
     const started = await Promise.all(
-      Array.from({ length: 5 }, () => createNewAttempt(survey.id, user.id))
+      Array.from({ length: 5 }, () => createNewAttempt(survey.publicId, user.id))
     );
 
     const ids = new Set(started.map(attempt => attempt.id));
@@ -108,8 +108,8 @@ describe('attemptService', () => {
       userId: user.id,
     }).returning();
 
-    const original = await createNewAttempt(survey.id, user.id);
-    const restarted = await restartAttempt(survey.id, user.id);
+    const original = await createNewAttempt(survey.publicId, user.id);
+    const restarted = await restartAttempt(survey.publicId, user.id);
 
     expect(restarted.id).not.toBe(original.id);
 
@@ -120,7 +120,7 @@ describe('attemptService', () => {
 
     // Restarting with nothing in progress simply starts one.
     await completeExistingAttempt(restarted.id, user.id);
-    const afterCompletion = await restartAttempt(survey.id, user.id);
+    const afterCompletion = await restartAttempt(survey.publicId, user.id);
     expect(afterCompletion.id).not.toBe(restarted.id);
   });
 });

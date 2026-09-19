@@ -1,13 +1,11 @@
 import { QuestionDao, QuestionInput } from "../models/frontend/question";
 import { db } from "../db";
-import { questions, surveys } from "../db/schema";
+import { questions } from "../db/schema";
+import { resolveSurveyId } from "./surveyService";
 import { eq, and } from "drizzle-orm";
 
-export async function createQuestion(surveyId: string, questionData: QuestionInput) {
-    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
-    if (surveyResults.length === 0) {
-        throw new Error('Survey not found');
-    }
+export async function createQuestion(surveyPublicId: string, questionData: QuestionInput) {
+    const surveyId = await resolveSurveyId(surveyPublicId);
 
     const insertValues: any = {
         surveyId,
@@ -33,11 +31,8 @@ export async function createQuestion(surveyId: string, questionData: QuestionInp
     await db.insert(questions).values(insertValues);
 }
 
-export async function editQuestion(surveyId: string, questionId: string, questionData: QuestionInput) {
-    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
-    if (surveyResults.length === 0) {
-        throw new Error('Survey not found');
-    }
+export async function editQuestion(surveyPublicId: string, questionId: string, questionData: QuestionInput) {
+    const surveyId = await resolveSurveyId(surveyPublicId);
 
     const questionResults = await db.select()
         .from(questions)
@@ -76,11 +71,8 @@ export async function editQuestion(surveyId: string, questionId: string, questio
         .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)));
 }
 
-export async function deleteQuestion(surveyId: string, questionId: string) {
-    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
-    if (surveyResults.length === 0) {
-        throw new Error('Survey not found');
-    }
+export async function deleteQuestion(surveyPublicId: string, questionId: string) {
+    const surveyId = await resolveSurveyId(surveyPublicId);
 
     const questionResults = await db.select()
         .from(questions)
@@ -94,11 +86,8 @@ export async function deleteQuestion(surveyId: string, questionId: string) {
         .where(and(eq(questions.id, questionId), eq(questions.surveyId, surveyId)));
 }
 
-export async function getQuestionsForSurvey(surveyId: string) {
-    const surveyResults = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
-    if (surveyResults.length === 0) {
-        throw new Error('Survey not found');
-    }
+export async function getQuestionsForSurvey(surveyPublicId: string) {
+    const surveyId = await resolveSurveyId(surveyPublicId);
 
     const results = await db.select()
         .from(questions)

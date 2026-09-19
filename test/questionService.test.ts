@@ -19,7 +19,7 @@ describe('questionService', () => {
     }).returning();
 
     // 2. Test: create multiple-choice question
-    await createQuestion(survey.id, {
+    await createQuestion(survey.publicId, {
       questionType: 'multiple-choice',
       title: 'MCQ Question',
       options: ['Option A', 'Option B'],
@@ -34,7 +34,7 @@ describe('questionService', () => {
     const questionId = mcqs[0].id;
 
     // 3. Test: edit question
-    await editQuestion(survey.id, questionId, {
+    await editQuestion(survey.publicId, questionId, {
       questionType: 'binary-choice',
       title: 'Binary Question',
       positiveLabel: 'Yes',
@@ -49,37 +49,37 @@ describe('questionService', () => {
     expect(updatedQs[0].options).toBeNull(); // Should reset old mcq options
 
     // 4. Test: delete question
-    await deleteQuestion(survey.id, questionId);
+    await deleteQuestion(survey.publicId, questionId);
     const deletedQs = await db.select().from(questions).where(eq(questions.id, questionId));
     expect(deletedQs).toHaveLength(0);
 
     // 5. Test: get questions for survey
-    await createQuestion(survey.id, {
+    await createQuestion(survey.publicId, {
       questionType: 'open-ended',
       title: 'Open ended Q',
     });
-    await createQuestion(survey.id, {
+    await createQuestion(survey.publicId, {
       questionType: 'multiple-choice',
       title: 'MCQ Q',
       options: ['Option 1', 'Option 2'],
     });
 
-    const surveyQuestions = await getQuestionsForSurvey(survey.id);
+    const surveyQuestions = await getQuestionsForSurvey(survey.publicId);
     expect(surveyQuestions).toHaveLength(2);
     expect(surveyQuestions[0].title).toBe('Open ended Q');
     const mcq = surveyQuestions[1];
     expect(mcq.questionType).toBe('multiple-choice');
     expect(mcq.questionType === 'multiple-choice' && mcq.options).toEqual(['Option 1', 'Option 2']);
 
-    await expect(getQuestionsForSurvey('00000000-0000-0000-0000-000000000000')).rejects.toThrow('Survey not found');
+    await expect(getQuestionsForSurvey('ZZZZZZ')).rejects.toThrow('Survey not found');
 
     // 6. Test errors
-    await expect(createQuestion('00000000-0000-0000-0000-000000000000', {
+    await expect(createQuestion('ZZZZZZ', {
       questionType: 'open-ended',
       title: 'Open ended',
     })).rejects.toThrow('Survey not found');
 
-    await expect(editQuestion(survey.id, '00000000-0000-0000-0000-000000000000', {
+    await expect(editQuestion(survey.publicId, '00000000-0000-0000-0000-000000000000', {
       questionType: 'open-ended',
       title: 'Open ended',
     })).rejects.toThrow('Question not found');

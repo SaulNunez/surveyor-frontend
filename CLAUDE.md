@@ -80,6 +80,18 @@ summary types). All are discriminated unions on `questionType`, one of
 `'open-ended' | 'multiple-choice' | 'binary-choice' | 'likert-scale'`. Adding a
 question type means touching every switch over that discriminant.
 
+**Survey public ids.** `surveys` carries a `public_id` alongside its uuid
+primary key: six base64url characters, generated in `libs/db/publicId.ts` and
+kept unique by the `surveys_public_id_unique` constraint. That code is the
+survey's identity everywhere outside the database — it is what URLs carry, what
+`SurveyDao.id` / `SurveySummaryDao.id` hold, and what every service takes as its
+survey argument. Foreign keys still point at the uuid, so services resolve the
+code with `resolveSurveyId` (`surveyService.ts`) before touching questions or
+attempts, and translate back on the way out — `toAttempt` takes the public id as
+a parameter for exactly that reason. The uuid must not reach a client. A survey
+is created with `createSurvey`, which retries on a unique violation rather than
+checking whether a code is free first; six characters is only 36 bits.
+
 **Single-table inheritance.** `questions` and `responses` each store all four
 variants in one table with nullable per-variant columns
 (`options`, `positive_label`/`negative_label`; `response`, `selected_option`,
