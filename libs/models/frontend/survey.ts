@@ -45,18 +45,40 @@ export interface LikertScaleSummary {
     ]
 }
 
+/**
+ * An AI-generated summary of an open-ended question's answers, carrying the
+ * provenance needed to judge how much to trust it: which provider and model
+ * produced it, over how many answers, and when. A `responseCount` below the
+ * number of answers now on screen means the summary predates some of them.
+ */
+export interface OpenEndedAiSummary {
+    text: string,
+    provider: string,
+    model: string,
+    responseCount: number,
+    generatedAt: string,
+}
+
 export interface OpenEndedSummary {
     id: string,
     title: string,
     questionType: 'open-ended',
-    summary: string,
+    responses: string[],
+    aiSummary: OpenEndedAiSummary | null,
 }
 
-type QuestionSummary = MultipleOptionsSummary | BinaryOptionsSummary | LikertScaleSummary | OpenEndedSummary;
+export type QuestionSummary = MultipleOptionsSummary | BinaryOptionsSummary | LikertScaleSummary | OpenEndedSummary;
+
+/** Whether this deployment can generate AI summaries at all. */
+export interface AiSummaryAvailability {
+    available: boolean,
+    provider: string | null,
+}
 
 export interface SurveySummaryDao {
     id: string,
     title: string,
     description: string
-    questions: QuestionSummary[]
+    questions: QuestionSummary[],
+    aiSummaries: AiSummaryAvailability,
 }

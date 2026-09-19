@@ -6,6 +6,7 @@ export async function setup() {
     console.log('Initializing test database schema...');
     
     await db.execute(sql`
+      DROP TABLE IF EXISTS question_summaries CASCADE;
       DROP TABLE IF EXISTS responses CASCADE;
       DROP TABLE IF EXISTS attempts CASCADE;
       DROP TABLE IF EXISTS questions CASCADE;
@@ -77,11 +78,24 @@ export async function setup() {
         rating integer
       );
 
+      CREATE TABLE question_summaries (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        question_id uuid NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+        summary text NOT NULL,
+        provider varchar(50) NOT NULL,
+        model varchar(100) NOT NULL,
+        response_count integer NOT NULL,
+        generated_at timestamp DEFAULT now() NOT NULL
+      );
+
       CREATE UNIQUE INDEX attempts_one_in_progress_per_user_survey
         ON attempts (survey_id, user_id) WHERE completed_at IS NULL;
 
       CREATE UNIQUE INDEX responses_attempt_question_unique
         ON responses (attempt_id, question_id);
+
+      CREATE UNIQUE INDEX question_summaries_question_unique
+        ON question_summaries (question_id);
     `);
     
     console.log('Test database schema initialized.');

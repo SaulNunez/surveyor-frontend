@@ -32,6 +32,12 @@ drizzle-kit, and by the test suite. `docker-compose up` brings up the app plus a
 Postgres 15 volume; the `Dockerfile` builds the Next.js `output: "standalone"`
 bundle.
 
+The app applies pending migrations itself on startup: `instrumentation.ts` calls
+`runMigrations()` (`libs/db/migrate.ts`, drizzle's runtime migrator under a
+Postgres advisory lock) before the server takes requests, in both `next dev` and
+the standalone image (which copies `drizzle/` in). `npm run db:migrate` still
+works for applying them by hand.
+
 ## Testing model
 
 Tests are **integration tests against a real database**, not unit tests with mocks:
@@ -96,6 +102,20 @@ are load-bearing, not defensive:
   resurrecting discarded answers.
 - Because there is exactly one response row per question, "is the attempt
   complete?" is a row count against the question count (`POST` attempt route).
+
+**AI summaries.** Open-ended questions can be summarised by an LLM, if the
+deployment configures one. `libs/services/ai/` resolves a provider from the
+environment (`config.ts`, auto-detecting anthropic → openai → ollama unless
+`AI_SUMMARY_PROVIDER` pins one) and returns a `SummaryProvider` behind one
+interface; `openai.ts` serves both OpenAI and Ollama, which speaks the same
+`/v1/chat/completions`. Resolution is lazy, at request time — `npm run build`
+must keep working with no provider credentials set. Two rules hold throughout:
+a provider error is logged server-side and re-thrown as an
+`InvalidOperationError` whose message is safe to show a survey owner, never
+forwarded raw; and `generateSummaryForQuestion` takes an injectable `provider`
+so tests exercise the whole path without reaching the network. Results persist
+one row per question in `question_summaries`, upserted on
+`question_summaries_question_unique` so concurrent Regenerate clicks collapse.
 
 **Auth.** NextAuth v4 credentials provider configured in `auth.ts` (bcrypt,
 JWT sessions). `auth()` is the server-side session accessor for routes;

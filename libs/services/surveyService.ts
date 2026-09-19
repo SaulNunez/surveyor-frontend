@@ -1,8 +1,25 @@
 import { NotFoundError } from "../models/Errors/notFoundError";
 import { db } from "../db";
-import { surveys, questions, responses, attempts } from "../db/schema";
-import { eq, and, isNotNull, count } from "drizzle-orm";
-import { SurveySummaryDao } from "../models/frontend/survey";
+import { surveys, questions, questionSummaries, responses } from "../db/schema";
+import { eq, and, isNotNull, ne, count, sql } from "drizzle-orm";
+import { QuestionSummary, SurveySummaryDao } from "../models/frontend/survey";
+import { Executor } from "../db/executor";
+import { resolveAiProviderConfig } from "./ai";
+
+/**
+ * Load a survey the given user owns, or throw. A survey belonging to someone
+ * else is reported as missing rather than forbidden, so the API does not leak
+ * which survey ids exist.
+ */
+export async function assertSurveyOwnedBy(surveyId: string, userId: string, executor: Executor = db) {
+    const results = await executor.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+
+    if (results.length === 0 || results[0].userId !== userId) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    return results[0];
+}
 
 export async function getAllSurveysForUser(userId: string) {
     const results = await db.select().from(surveys).where(eq(surveys.userId, userId));
@@ -47,17 +64,7 @@ export async function createSurvey(title: string, description: string, userId: s
 }
 
 export async function editSurvey(surveyId: string, userId: string, title: string, description: string) {
-    const results = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
-
-    if (results.length === 0) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    const survey = results[0];
-
-    if (survey.userId !== userId) {
-        throw new NotFoundError('Survey not found');
-    }
+    await assertSurveyOwnedBy(surveyId, userId);
 
     const updated = await db.update(surveys)
         .set({ title, description })
@@ -73,17 +80,7 @@ export async function editSurvey(surveyId: string, userId: string, title: string
 }
 
 export async function deleteSurvey(surveyId: string, userId: string) {
-    const results = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
-
-    if (results.length === 0) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    const survey = results[0];
-
-    if (survey.userId !== userId) {
-        throw new NotFoundError('Survey not found');
-    }
+    await assertSurveyOwnedBy(surveyId, userId);
 
     await db.delete(surveys).where(eq(surveys.id, surveyId));
     return true;
@@ -258,7 +255,18 @@ export async function getSurveySummary(surveyId: string): Promise<SurveySummaryD
         .from(questions)
         .where(eq(questions.surveyId, surveyId));
 
-    const questionsSummaries: any[] = [];
+    // One lookup for every stored AI summary in the survey, rather than a
+    // query per open-ended question.
+    const storedSummaries = await db.select()
+        .from(questionSummaries)
+        .innerJoin(questions, eq(questionSummaries.questionId, questions.id))
+        .where(eq(questions.surveyId, surveyId));
+
+    const summaryByQuestionId = new Map(
+        storedSummaries.map(row => [row.question_summaries.questionId, row.question_summaries])
+    );
+
+    const questionsSummaries: QuestionSummary[] = [];
 
     for (const question of questionResults) {
         if (question.questionType === "multiple-choice") {
@@ -365,28 +373,49 @@ export async function getSurveySummary(surveyId: string): Promise<SurveySummaryD
             .where(
                 and(
                     eq(responses.questionId, question.id),
-                    isNotNull(responses.response)
+                    isNotNull(responses.response),
+                    ne(sql`btrim(${responses.response})`, '')
                 )
             );
 
-            const summary = openEndedResponses
-                .map(r => r.response)
-                .filter(Boolean)
-                .join(", ");
+            const stored = summaryByQuestionId.get(question.id);
 
             questionsSummaries.push({
                 id: question.id,
                 title: question.text,
                 questionType: "open-ended",
-                summary
+                responses: openEndedResponses.map(r => r.response!.trim()),
+                aiSummary: stored
+                    ? {
+                        text: stored.summary,
+                        provider: stored.provider,
+                        model: stored.model,
+                        responseCount: stored.responseCount,
+                        generatedAt: stored.generatedAt.toISOString(),
+                    }
+                    : null,
             });
         }
+    }
+
+    // Resolution can throw when AI_SUMMARY_PROVIDER names a provider whose
+    // credentials are missing. That is a server misconfiguration, not a reason
+    // to fail reading results — report the feature as unavailable instead.
+    let aiProvider: string | null = null;
+    try {
+        aiProvider = resolveAiProviderConfig()?.provider ?? null;
+    } catch (reason) {
+        console.error('AI provider is misconfigured; summaries disabled:', reason);
     }
 
     return {
         id: survey.id,
         title: survey.title,
         description: survey.description,
-        questions: questionsSummaries
+        questions: questionsSummaries,
+        aiSummaries: {
+            available: aiProvider !== null,
+            provider: aiProvider,
+        },
     };
 }
