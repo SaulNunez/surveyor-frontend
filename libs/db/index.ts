@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
 
-const connectionString = (process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/surveyor').replace(/^"|"$/g, '');
+export const connectionString = (process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/surveyor').replace(/^"|"$/g, '');
 const pool = new Pool({
   connectionString,
 });

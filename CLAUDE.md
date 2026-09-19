@@ -32,6 +32,12 @@ drizzle-kit, and by the test suite. `docker-compose up` brings up the app plus a
 Postgres 15 volume; the `Dockerfile` builds the Next.js `output: "standalone"`
 bundle.
 
+The app applies pending migrations itself on startup: `instrumentation.ts` calls
+`runMigrations()` (`libs/db/migrate.ts`, drizzle's runtime migrator under a
+Postgres advisory lock) before the server takes requests, in both `next dev` and
+the standalone image (which copies `drizzle/` in). `npm run db:migrate` still
+works for applying them by hand.
+
 ## Testing model
 
 Tests are **integration tests against a real database**, not unit tests with mocks:
