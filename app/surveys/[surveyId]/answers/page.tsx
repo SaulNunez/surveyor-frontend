@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BarChart2 } from "lucide-react";
+import { ArrowLeft, BarChart2, Download } from "lucide-react";
 import { Loading } from "@/components/common/Loading";
 import { ServerError } from "@/components/common/ServerError";
 import { QuestionSummary, SurveySummaryDao } from "@/libs/models/frontend/survey";
@@ -81,13 +81,22 @@ export default function SurveyAnswersPage() {
 
         {/* Title and Description */}
         <header className="mb-8 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
-              <BarChart2 size={24} />
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                <BarChart2 size={24} />
+              </div>
+              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                Survey Results
+              </span>
             </div>
-            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-              Survey Results
-            </span>
+            <a
+              href={`/api/surveys/${surveyId}/export`}
+              download
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-700 transition"
+            >
+              <Download size={16} /> Export .ods
+            </a>
           </div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
             {survey.title}
