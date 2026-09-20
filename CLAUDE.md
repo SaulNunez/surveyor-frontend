@@ -24,7 +24,9 @@ npx vitest run test/attemptService.test.ts -t 'should manage attempts'
 
 CI (`.github/workflows/test.yml`) runs lint → typecheck → build → test on a bare
 `ubuntu-latest` runner — the suite brings its own database — so all four must
-pass locally before pushing.
+pass locally before pushing. It runs Node 22, matching the `engines` floor of
+`>=22.22`: testcontainers pulls in an undici that needs
+`worker_threads.markAsUncloneable`, so `npm test` fails on Node 20.
 
 ## Environment
 

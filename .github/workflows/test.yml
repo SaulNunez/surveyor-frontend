@@ -14,10 +14,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 22.x, not 20: testcontainers (via undici) needs
+      # worker_threads.markAsUncloneable, and matches the Dockerfile's
+      # node:22-alpine.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
