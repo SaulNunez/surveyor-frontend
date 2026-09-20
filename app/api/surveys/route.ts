@@ -25,11 +25,15 @@ export async function POST(request: Request) {
             return new Response("Unauthorized", { status: 401 })
         }
 
-        if (!session.user.email) {
-            throw new Error("Email not defined!");
+        if (session.user.isAnonymous) {
+            return new Response("Guest accounts cannot create surveys. Register to keep your answers and create your own.", { status: 403 })
         }
 
-        const surveyResult = await createSurvey(title, description, session.user.id);
+        // Strict equality, so a missing or malformed field leaves the survey
+        // closed. Opening one has to be deliberate.
+        const openToAnyone = body["openToAnyone"] === true;
+
+        const surveyResult = await createSurvey(title, description, session.user.id, openToAnyone);
 
         const questions = body["questions"].map(async (question) => await createQuestion(surveyResult.id, question));
         await Promise.all(questions);

@@ -10,6 +10,7 @@ import { Loading } from "@/components/common/Loading";
 import { ServerError } from "@/components/common/ServerError";
 import { QuestionSummary, SurveySummaryDao } from "@/libs/models/frontend/survey";
 import { OpenEndedSummaryCard } from "./_components/OpenEndedSummaryCard";
+import { OpenToAnyoneToggle } from "./_components/OpenToAnyoneToggle";
 import {
   BarChart,
   Bar,
@@ -106,6 +107,7 @@ export default function SurveyAnswersPage() {
               <ReactMarkdown>{survey.description}</ReactMarkdown>
             </div>
           )}
+          <OpenToAnyoneToggle survey={survey} />
         </header>
 
         {/* Questions Summary */}

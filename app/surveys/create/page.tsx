@@ -31,6 +31,7 @@ export default function SurveyCreate() {
   const [description, setDescription] = useState("");
   const [descTab, setDescTab] = useState("edit");
   const [questions, setQuestions] = useState<QuestionDaoInScreen[]>([]);
+  const [openToAnyone, setOpenToAnyone] = useState(false);
 
   const postSurvey = (survey: SurveyInput) => {
     return fetch('/api/surveys', {
@@ -54,7 +55,7 @@ export default function SurveyCreate() {
 
   const submitSurvey = async () => {
     if (!title.trim()) return;
-    surveyMutation.mutate({ title, description, questions }, {
+    surveyMutation.mutate({ title, description, openToAnyone, questions }, {
       onSuccess: (data) => {
         router.push(`/surveys/${data?.id}`);
       },
@@ -219,6 +220,27 @@ export default function SurveyCreate() {
                   )}
                 </div>
               )}
+            </div>
+
+            <div className="pt-5 mt-1 border-t border-gray-200 dark:border-zinc-800">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={openToAnyone}
+                  onChange={(e) => setOpenToAnyone(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-zinc-700 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                    Open to anyone
+                  </span>
+                  <span className="block text-xs text-gray-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                    Anyone with the link can answer without creating an account. Because
+                    guests are identified by their browser, the same person can answer more
+                    than once from a different browser or device.
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
         </header>

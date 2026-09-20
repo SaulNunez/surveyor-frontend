@@ -5,6 +5,7 @@ import { generateSurveyPublicId } from "../db/publicId";
 import { eq, and, isNotNull, ne, count, sql } from "drizzle-orm";
 import { QuestionSummary, SurveySummaryDao } from "../models/frontend/survey";
 import { Executor } from "../db/executor";
+import { isUniqueViolation } from "../db/errors";
 import { resolveAiProviderConfig } from "./ai";
 
 /**
@@ -21,10 +22,6 @@ export async function assertSurveyOwnedBy(surveyPublicId: string, userId: string
 
     return results[0];
 }
-
-// Postgres' unique_violation. `createSurvey` retries on it rather than
-// check-then-insert, the same way attempts are created.
-const UNIQUE_VIOLATION = '23505';
 
 // Six base64url characters leave room for collisions, so a create that loses
 // the race for a code tries again with a fresh one. Ten attempts is far more
@@ -52,6 +49,26 @@ export async function resolveSurveyId(publicId: string, executor: Executor = db)
     return results[0].id;
 }
 
+/**
+ * Whether this survey accepts answers from guest accounts.
+ *
+ * Kept separate from `resolveSurveyId` rather than widening it: that function
+ * hands a bare uuid to `questionService`, `attemptService` and
+ * `responseService`, none of which care about who may answer.
+ */
+export async function isSurveyOpenToAnyone(surveyPublicId: string, executor: Executor = db): Promise<boolean> {
+    const results = await executor.select({ openToAnyone: surveys.openToAnyone })
+        .from(surveys)
+        .where(eq(surveys.publicId, surveyPublicId))
+        .limit(1);
+
+    if (results.length === 0) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    return results[0].openToAnyone;
+}
+
 export async function getAllSurveysForUser(userId: string) {
     const results = await db.select().from(surveys).where(eq(surveys.userId, userId));
 
@@ -59,7 +76,8 @@ export async function getAllSurveysForUser(userId: string) {
         id: survey.publicId,
         title: survey.title,
         description: survey.description,
-        createdAt: survey.createdAt
+        createdAt: survey.createdAt,
+        openToAnyone: survey.openToAnyone
     }));
 }
 
@@ -75,25 +93,33 @@ export async function getSurvey(surveyPublicId: string) {
         id: survey.publicId,
         title: survey.title,
         description: survey.description,
-        createdAt: survey.createdAt
+        createdAt: survey.createdAt,
+        openToAnyone: survey.openToAnyone
     };
 }
 
-export async function createSurvey(title: string, description: string, userId: string) {
+/**
+ * Note the missing `executor`: the retry below catches a unique violation and
+ * inserts again, which a transaction cannot survive — Postgres aborts the
+ * whole transaction on the first one. This has to run on its own connection.
+ */
+export async function createSurvey(title: string, description: string, userId: string, openToAnyone = false) {
     for (let attempt = 0; attempt < PUBLIC_ID_ATTEMPTS; attempt++) {
         try {
             const results = await db.insert(surveys).values({
                 publicId: generateSurveyPublicId(),
                 title,
                 description,
-                userId
+                userId,
+                openToAnyone
             }).returning();
 
             const survey = results[0];
             return {
                 id: survey.publicId,
                 title: survey.title,
-                description: survey.description
+                description: survey.description,
+                openToAnyone: survey.openToAnyone
             };
         } catch (error) {
             // Another survey already holds this code. Nothing about the row is
@@ -107,18 +133,24 @@ export async function createSurvey(title: string, description: string, userId: s
     throw new Error('Could not allocate a public id for this survey');
 }
 
+// `createSurvey` retries on this rather than check-then-insert, the same way
+// attempts are created.
 function isPublicIdCollision(error: unknown) {
-    return typeof error === 'object'
-        && error !== null
-        && (error as { code?: string }).code === UNIQUE_VIOLATION
-        && String((error as { constraint?: string }).constraint ?? '').includes('public_id');
+    return isUniqueViolation(error, 'public_id');
 }
 
-export async function editSurvey(surveyPublicId: string, userId: string, title: string, description: string) {
-    const survey = await assertSurveyOwnedBy(surveyPublicId, userId);
+export async function editSurvey(
+    surveyPublicId: string,
+    userId: string,
+    title: string,
+    description: string,
+    openToAnyone: boolean,
+    executor: Executor = db
+) {
+    const survey = await assertSurveyOwnedBy(surveyPublicId, userId, executor);
 
-    const updated = await db.update(surveys)
-        .set({ title, description })
+    const updated = await executor.update(surveys)
+        .set({ title, description, openToAnyone })
         .where(eq(surveys.id, survey.id))
         .returning();
 
@@ -126,7 +158,8 @@ export async function editSurvey(surveyPublicId: string, userId: string, title: 
     return {
         id: updatedSurvey.publicId,
         title: updatedSurvey.title,
-        description: updatedSurvey.description
+        description: updatedSurvey.description,
+        openToAnyone: updatedSurvey.openToAnyone
     };
 }
 
@@ -463,6 +496,7 @@ export async function getSurveySummary(surveyPublicId: string): Promise<SurveySu
         id: survey.publicId,
         title: survey.title,
         description: survey.description,
+        openToAnyone: survey.openToAnyone,
         questions: questionsSummaries,
         aiSummaries: {
             available: aiProvider !== null,

@@ -10,6 +10,10 @@ export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+    // A guest has no name, no email and nothing to manage, so the avatar menu
+    // would only lead to pages that turn them away.
+    const isGuest = session?.user?.isAnonymous === true;
+
     const userInitial = session?.user?.name
         ? session.user.name.charAt(0).toUpperCase()
         : session?.user?.email
@@ -45,7 +49,7 @@ export default function Header() {
             </div>
 
             {/* Home Link (hidden on small screens) */}
-            {session?.user && (
+            {session?.user && !isGuest && (
                 <a
                     href="/home"
                     className="hidden sm:flex items-center gap-2 text-black dark:text-white hover:underline"
@@ -56,7 +60,19 @@ export default function Header() {
             )}
 
             {/* User Menu / Auth Buttons */}
-            {session?.user ? (
+            {isGuest ? (
+                <div className="flex items-center gap-3">
+                    <span className="hidden sm:inline text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                        Guest
+                    </span>
+                    <Link
+                        href="/register"
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700"
+                    >
+                        Create account
+                    </Link>
+                </div>
+            ) : session?.user ? (
                 <div className="relative">
                     <button
                         onClick={() => setMenuOpen(!menuOpen)}

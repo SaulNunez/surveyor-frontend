@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getUserByEmail, updateUserName } from "@/libs/services/auth/userService";
+import { updateUserName } from "@/libs/services/auth/userService";
 
 export async function PUT(req: Request) {
   const session = await auth();
 
-  if (!session?.user?.email) {
+  // Keyed on the id, not the email: a guest account has no email at all, and
+  // the id is what every service already identifies a user by.
+  if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.user.isAnonymous) {
+    return NextResponse.json(
+      { message: "Guest accounts have no settings. Register first." },
+      { status: 403 }
+    );
   }
 
   const { displayName } = await req.json();
@@ -18,12 +27,7 @@ export async function PUT(req: Request) {
   }
 
   try {
-    const user = await getUserByEmail(session.user.email);
-    if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
-
-    const updated = await updateUserName(user.id, displayName.trim());
+    const updated = await updateUserName(session.user.id, displayName.trim());
     if (!updated) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }

@@ -3,6 +3,7 @@ import { db } from '../libs/db';
 import { eq } from 'drizzle-orm';
 import { users, surveys, attempts } from '../libs/db/schema';
 import { createNewAttempt, deleteExistingAttempt, completeExistingAttempt, getExistingAttempt, restartAttempt } from '../libs/services/attemptService';
+import { createAnonymousUser } from '../libs/services/auth/userService';
 import { NotFoundError } from '../libs/models/Errors/notFoundError';
 import { InvalidOperationError } from '../libs/models/Errors/invalidOperationError';
 
@@ -122,5 +123,43 @@ describe('attemptService', () => {
     await completeExistingAttempt(restarted.id, user.id);
     const afterCompletion = await restartAttempt(survey.publicId, user.id);
     expect(afterCompletion.id).not.toBe(restarted.id);
+  });
+
+  it('should treat a guest account like any other respondent', async () => {
+    // Guests are ordinary `users` rows, so nothing in this service — including
+    // the partial index that allows one in-progress attempt per person — needs
+    // to know the difference.
+    const [owner] = await db.insert(users).values({
+      email: 'owner@example.com',
+      password: 'password',
+    }).returning();
+
+    const [survey] = await db.insert(surveys).values({
+      title: 'Open Survey',
+      description: 'Desc',
+      userId: owner.id,
+      openToAnyone: true,
+    }).returning();
+
+    const guest = await createAnonymousUser();
+    const otherGuest = await createAnonymousUser();
+
+    const attempt = await createNewAttempt(survey.publicId, guest.id);
+    expect(attempt.survey).toBe(survey.publicId);
+
+    // A second save resumes the same attempt rather than starting another.
+    expect((await createNewAttempt(survey.publicId, guest.id)).id).toBe(attempt.id);
+
+    // A different guest is a different respondent with their own attempt.
+    const otherAttempt = await createNewAttempt(survey.publicId, otherGuest.id);
+    expect(otherAttempt.id).not.toBe(attempt.id);
+
+    // And once submitted, a guest can start a fresh one.
+    await completeExistingAttempt(attempt.id, guest.id);
+    expect(await getExistingAttempt(survey.publicId, guest.id)).toBeNull();
+    expect((await createNewAttempt(survey.publicId, guest.id)).id).not.toBe(attempt.id);
+
+    const guestAttempts = await db.select().from(attempts).where(eq(attempts.userId, guest.id));
+    expect(guestAttempts).toHaveLength(2);
   });
 });
