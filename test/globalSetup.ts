@@ -1,107 +1,45 @@
-import { db } from '../libs/db';
-import { sql } from 'drizzle-orm';
+import type { TestProject } from 'vitest/node';
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
-export async function setup() {
-  try {
-    console.log('Initializing test database schema...');
-    
-    await db.execute(sql`
-      DROP TABLE IF EXISTS question_summaries CASCADE;
-      DROP TABLE IF EXISTS responses CASCADE;
-      DROP TABLE IF EXISTS attempts CASCADE;
-      DROP TABLE IF EXISTS questions CASCADE;
-      DROP TABLE IF EXISTS surveys CASCADE;
-      DROP TABLE IF EXISTS refresh_tokens CASCADE;
-      DROP TABLE IF EXISTS clients CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-    `);
+// Matches the image docker-compose and production run against.
+const POSTGRES_IMAGE = 'postgres:15';
 
-    await db.execute(sql`
-      CREATE TABLE users (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        email varchar(255) NOT NULL UNIQUE,
-        password varchar(255) NOT NULL,
-        display_name varchar(255)
-      );
+let container: StartedPostgreSqlContainer | undefined;
 
-      CREATE TABLE clients (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        client_name varchar(255) NOT NULL,
-        client_description text NOT NULL,
-        client_secret varchar(255),
-        redirect_uris text[] NOT NULL DEFAULT '{}'::text[],
-        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
-      );
+/**
+ * Brings up a throwaway Postgres for the whole run and applies `drizzle/` to it,
+ * so tests see exactly the schema the app boots with — there is no second,
+ * hand-written copy of the schema to keep in sync.
+ *
+ * Set TEST_DATABASE_URL to run against an already-running database instead (no
+ * Docker needed). Everything in it is dropped and truncated, so it must not be a
+ * database anyone cares about; plain DATABASE_URL is deliberately ignored here,
+ * since it usually points at a developer's own instance.
+ */
+export async function setup(project: TestProject) {
+  const existing = process.env.TEST_DATABASE_URL;
+  let databaseUrl: string;
 
-      CREATE TABLE refresh_tokens (
-        id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-        token varchar(255) NOT NULL,
-        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        expiry_date timestamp NOT NULL,
-        client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE surveys (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        public_id varchar(6) NOT NULL UNIQUE,
-        title varchar(255) NOT NULL,
-        description text NOT NULL,
-        created_at timestamp DEFAULT now() NOT NULL,
-        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE questions (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        survey_id uuid NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
-        text text NOT NULL,
-        question_type varchar(50) NOT NULL,
-        options text[],
-        positive_label text,
-        negative_label text
-      );
-
-      CREATE TABLE attempts (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        survey_id uuid NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
-        started_at timestamp DEFAULT now() NOT NULL,
-        completed_at timestamp
-      );
-
-      CREATE TABLE responses (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        attempt_id uuid NOT NULL REFERENCES attempts(id) ON DELETE CASCADE,
-        question_id uuid NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-        response_type varchar(50) NOT NULL,
-        response text,
-        selected_option integer,
-        choice boolean,
-        rating integer
-      );
-
-      CREATE TABLE question_summaries (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        question_id uuid NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-        summary text NOT NULL,
-        provider varchar(50) NOT NULL,
-        model varchar(100) NOT NULL,
-        response_count integer NOT NULL,
-        generated_at timestamp DEFAULT now() NOT NULL
-      );
-
-      CREATE UNIQUE INDEX attempts_one_in_progress_per_user_survey
-        ON attempts (survey_id, user_id) WHERE completed_at IS NULL;
-
-      CREATE UNIQUE INDEX responses_attempt_question_unique
-        ON responses (attempt_id, question_id);
-
-      CREATE UNIQUE INDEX question_summaries_question_unique
-        ON question_summaries (question_id);
-    `);
-    
-    console.log('Test database schema initialized.');
-  } catch (error) {
-    console.error('Failed to initialize test database schema:', error);
-    throw error;
+  if (existing) {
+    console.log('Using TEST_DATABASE_URL; not starting a container.');
+    databaseUrl = existing;
+  } else {
+    console.log(`Starting ${POSTGRES_IMAGE} container for tests…`);
+    container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
+    databaseUrl = container.getConnectionUri();
   }
+
+  // libs/db builds its pool from DATABASE_URL at module-evaluation time, so this
+  // has to be set before anything imports it — hence the dynamic import below.
+  process.env.DATABASE_URL = databaseUrl;
+  const { runMigrations } = await import('../libs/db/migrate');
+  await runMigrations();
+
+  // Workers are separate processes: hand them the URL over vitest's own channel
+  // rather than relying on env inheritance.
+  project.provide('databaseUrl', databaseUrl);
+}
+
+export async function teardown() {
+  await container?.stop();
 }

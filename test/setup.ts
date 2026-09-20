@@ -1,6 +1,10 @@
-import { beforeEach } from 'vitest';
-import { db } from '../libs/db';
+import { beforeEach, inject } from 'vitest';
 import { sql } from 'drizzle-orm';
+
+// Must happen before the first import of libs/db in this worker: it reads
+// DATABASE_URL when the module is evaluated. Hence the dynamic import.
+process.env.DATABASE_URL = inject('databaseUrl');
+const { db } = await import('../libs/db');
 
 // Clean up all data before each test to guarantee isolation
 beforeEach(async () => {
