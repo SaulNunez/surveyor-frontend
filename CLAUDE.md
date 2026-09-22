@@ -9,7 +9,7 @@ npm run dev          # Next.js dev server (turbopack) on :3000
 npm run build        # production build (needs DATABASE_URL and NEXTAUTH_SECRET set)
 npm run lint         # eslint (next/core-web-vitals)
 npm run typecheck    # tsc --noEmit
-npm test             # vitest run — REQUIRES a live Postgres
+npm test             # vitest run — REQUIRES a running Docker daemon
 npm run test:watch
 npm run db:generate  # drizzle-kit generate: emit a migration from libs/db/schema.ts
 npm run db:migrate   # drizzle-kit migrate: apply migrations in drizzle/
@@ -22,15 +22,18 @@ npx vitest run test/attemptService.test.ts
 npx vitest run test/attemptService.test.ts -t 'should manage attempts'
 ```
 
-CI (`.github/workflows/test.yml`) runs lint → typecheck → build → test against a
-`postgres:15` service, so all four must pass locally before pushing.
+CI (`.github/workflows/test.yml`) runs lint → typecheck → build → test on a bare
+`ubuntu-latest` runner — the suite brings its own database — so all four must
+pass locally before pushing. It runs Node 22, matching the `engines` floor of
+`>=22.22`: testcontainers pulls in an undici that needs
+`worker_threads.markAsUncloneable`, so `npm test` fails on Node 20.
 
 ## Environment
 
-Copy `.env.example` to `.env`. `DATABASE_URL` is required by the app, by
-drizzle-kit, and by the test suite. `docker-compose up` brings up the app plus a
-Postgres 15 volume; the `Dockerfile` builds the Next.js `output: "standalone"`
-bundle.
+Copy `.env.example` to `.env`. `DATABASE_URL` is required by the app and by
+drizzle-kit; the test suite ignores it and provisions its own database (see
+*Testing model*). `docker-compose up` brings up the app plus a Postgres 15
+volume; the `Dockerfile` builds the Next.js `output: "standalone"` bundle.
 
 The app applies pending migrations itself on startup: `instrumentation.ts` calls
 `runMigrations()` (`libs/db/migrate.ts`, drizzle's runtime migrator under a
@@ -42,11 +45,21 @@ works for applying them by hand.
 
 Tests are **integration tests against a real database**, not unit tests with mocks:
 
-- `test/globalSetup.ts` drops and recreates the whole schema in raw SQL. It is a
-  hand-maintained mirror of `libs/db/schema.ts` — **any schema change must be
-  applied there too**, alongside a drizzle migration, or tests silently run
-  against a stale schema.
-- `test/setup.ts` `TRUNCATE`s every table before each test.
+- `test/globalSetup.ts` starts a throwaway `postgres:15` container with
+  testcontainers and applies `drizzle/` to it through the app's own
+  `runMigrations()`, then publishes the connection string with
+  `project.provide('databaseUrl', …)`; `teardown()` stops the container. A schema
+  change therefore needs **only** a drizzle migration — there is no second copy
+  of the schema to keep in sync, and every run exercises the migrations.
+- Running `npm test` needs Docker, not a live Postgres. Set `TEST_DATABASE_URL`
+  to use an already-running database instead and skip the container; plain
+  `DATABASE_URL` is deliberately ignored, since this setup drops and truncates
+  whatever it is pointed at.
+- `test/setup.ts` sets `process.env.DATABASE_URL` from `inject('databaseUrl')`
+  **before** dynamically importing `libs/db` — the pool in `libs/db/index.ts` is
+  built at module-evaluation time, so a static import there would bind the wrong
+  URL — then `TRUNCATE`s every table before each test. `test/vitest.d.ts` types
+  the provided value.
 - `fileParallelism: false` in `vitest.config.ts`, because all files share the one
   database.
 
