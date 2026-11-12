@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { restartAttempt } from "@/libs/services/attemptService";
 import { NotFoundError } from "@/libs/models/Errors/notFoundError";
 import { rejectGuestOnClosedSurvey } from "../_guard";
+import { msg } from "@lingui/core/macro";
+import { errorMessage, translate } from "@/libs/i18n/apiErrors";
 
 /**
  * Discards the in-progress attempt and starts a fresh one atomically, so a
@@ -10,7 +12,7 @@ import { rejectGuestOnClosedSurvey } from "../_guard";
 export async function POST(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     const session = await auth();
     if (!session?.user) {
-        return new Response("Unauthorized", { status: 401 });
+        return new Response(await translate(msg`Unauthorized`), { status: 401 });
     }
 
     try {
@@ -27,9 +29,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
         });
     } catch (error) {
         if (error instanceof NotFoundError) {
-            return new Response("Survey not found", { status: 404 });
+            return new Response(await errorMessage(error), { status: 404 });
         }
-        const message = error instanceof Error ? error.message : "Unexpected error";
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(error), { status: 500 });
     }
 }

@@ -2,19 +2,36 @@ import { getAllSurveysForUser } from "@/libs/services/surveyService";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { Plus, Calendar, ArrowRight, FileText, BarChart2 } from "lucide-react";
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { initLingui } from "@/libs/i18n/server";
+
+// Picked by the hour below. Message descriptors rather than `t` calls, because
+// the one that wins still has to be translated with the request's catalog.
+const GREETINGS = {
+  morning: msg`Good morning`,
+  afternoon: msg`Good afternoon`,
+  evening: msg`Good evening`,
+};
 
 export default async function Dashboard() {
+  // Server Components read their catalog out of a request-scoped store, so this
+  // has to run before anything below renders a <Trans>.
+  const i18n = await initLingui();
+
   const session = await auth();
   if (!session?.user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-6">
         <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 text-center max-w-sm">
-          <p className="text-gray-700 dark:text-zinc-300 font-medium mb-4">User not logged in.</p>
+          <p className="text-gray-700 dark:text-zinc-300 font-medium mb-4">
+            <Trans>User not logged in.</Trans>
+          </p>
           <Link 
             href="/login" 
             className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
           >
-            Go to Login
+            <Trans>Go to Login</Trans>
           </Link>
         </div>
       </div>
@@ -28,17 +45,19 @@ export default async function Dashboard() {
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-6">
         <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 text-center max-w-sm">
           <h1 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-            You&apos;re signed in as a guest
+            <Trans>You&apos;re signed in as a guest</Trans>
           </h1>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6">
-            Guest accounts can answer surveys, but not create them. Create an account
-            to keep the answers you have already given and start your own surveys.
+            <Trans>
+              Guest accounts can answer surveys, but not create them. Create an account
+              to keep the answers you have already given and start your own surveys.
+            </Trans>
           </p>
           <Link
             href="/register"
             className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
           >
-            Create account
+            <Trans>Create account</Trans>
           </Link>
         </div>
       </div>
@@ -51,15 +70,15 @@ export default async function Dashboard() {
   try {
     surveysResult = await getAllSurveysForUser(session.user.id);
   } catch (err: any) {
-    errorMsg = err.message || "Failed to load surveys";
+    errorMsg = err.message || i18n._(msg`Failed to load surveys`);
   }
 
   // Get current hour to show appropriate greeting
   const hour = new Date().getHours();
-  let greeting = "Welcome back";
-  if (hour < 12) greeting = "Good morning";
-  else if (hour < 18) greeting = "Good afternoon";
-  else greeting = "Good evening";
+  const greeting = i18n._(
+    hour < 12 ? GREETINGS.morning : hour < 18 ? GREETINGS.afternoon : GREETINGS.evening,
+  );
+  const who = session.user.name ?? session.user.email;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
@@ -68,10 +87,10 @@ export default async function Dashboard() {
         <header className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              {greeting}, {session.user.name ?? session.user.email}
+              <Trans>{greeting}, {who}</Trans>
             </h1>
             <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-              Manage your active surveys and analyze responses.
+              <Trans>Manage your active surveys and analyze responses.</Trans>
             </p>
           </div>
           {surveysResult.length > 0 && (
@@ -79,7 +98,7 @@ export default async function Dashboard() {
               href="/surveys/create"
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-650 dark:hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow transition active:scale-[0.98]"
             >
-              <Plus size={16} /> Create Survey
+              <Plus size={16} /> <Trans>Create Survey</Trans>
             </Link>
           )}
         </header>
@@ -87,7 +106,7 @@ export default async function Dashboard() {
         {/* Error State */}
         {errorMsg && (
           <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-250 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-2xl mb-6 text-sm font-medium">
-            Error loading surveys: {errorMsg}
+            <Trans>Error loading surveys: {errorMsg}</Trans>
           </div>
         )}
 
@@ -105,26 +124,26 @@ export default async function Dashboard() {
                       {survey.title}
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6 line-clamp-2 min-h-[2.5rem]">
-                      {survey.description || "No description provided."}
+                      {survey.description || <Trans>No description provided.</Trans>}
                     </p>
                   </div>
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-zinc-850">
                     <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500">
                       <Calendar size={14} />
-                      <span>{new Date(survey.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <span>{new Date(survey.createdAt).toLocaleDateString(i18n.locale, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/surveys/${survey.id}/answers`}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-lg border border-blue-100/50 dark:border-blue-900/30 transition"
                       >
-                        <BarChart2 size={12} /> Stats
+                        <BarChart2 size={12} /> <Trans>Stats</Trans>
                       </Link>
                       <Link
                         href={`/surveys/${survey.id}`}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 text-xs font-bold rounded-lg border border-gray-250/60 dark:border-zinc-700/80 transition"
                       >
-                        View <ArrowRight size={12} />
+                        <Trans>View</Trans> <ArrowRight size={12} />
                       </Link>
                     </div>
                   </div>
@@ -136,15 +155,19 @@ export default async function Dashboard() {
               <div className="inline-flex items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 rounded-2xl mb-4">
                 <FileText size={32} />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No surveys found</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                <Trans>No surveys found</Trans>
+              </h3>
               <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6 max-w-sm mx-auto">
-                Start by creating your first survey to collect feedback, structure questions, and analyze responses.
+                <Trans>
+                  Start by creating your first survey to collect feedback, structure questions, and analyze responses.
+                </Trans>
               </p>
               <Link
                 href="/surveys/create"
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition active:scale-[0.98]"
               >
-                <Plus size={16} /> Create Your First Survey
+                <Plus size={16} /> <Trans>Create Your First Survey</Trans>
               </Link>
             </div>
           )
@@ -153,4 +176,3 @@ export default async function Dashboard() {
     </div>
   );
 }
-

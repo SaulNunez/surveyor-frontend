@@ -11,6 +11,8 @@ import { ServerError } from "@/components/common/ServerError";
 import { QuestionSummary, SurveySummaryDao } from "@/libs/models/frontend/survey";
 import { OpenEndedSummaryCard } from "./_components/OpenEndedSummaryCard";
 import { OpenToAnyoneToggle } from "./_components/OpenToAnyoneToggle";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { QUESTION_TYPE_LABELS } from "@/libs/i18n/questionTypes";
 import {
   BarChart,
   Bar,
@@ -30,11 +32,12 @@ const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#3b82f6"
 export default function SurveyAnswersPage() {
   const params = useParams();
   const surveyId = params?.surveyId as string;
+  const { i18n, t } = useLingui();
 
   const fetchSurveySummary = async (): Promise<SurveySummaryDao> => {
     const res = await fetch(`/api/surveys/${surveyId}/summary`);
     if (!res.ok) {
-      throw new Error(`Failed to fetch survey summary: ${res.statusText}`);
+      throw new Error(t`Failed to fetch survey summary: ${res.statusText}`);
     }
     return res.json();
   };
@@ -61,7 +64,7 @@ export default function SurveyAnswersPage() {
           href="/surveys" 
           className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-xl border border-gray-200 dark:border-gray-700 transition"
         >
-          <ArrowLeft size={16} /> Back to Dashboard
+          <ArrowLeft size={16} /> <Trans>Back to Dashboard</Trans>
         </Link>
       </div>
     );
@@ -76,7 +79,7 @@ export default function SurveyAnswersPage() {
             href="/surveys"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
           >
-            <ArrowLeft size={16} /> Back to Surveys
+            <ArrowLeft size={16} /> <Trans>Back to Surveys</Trans>
           </Link>
         </div>
 
@@ -88,7 +91,7 @@ export default function SurveyAnswersPage() {
                 <BarChart2 size={24} />
               </div>
               <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                Survey Results
+                <Trans>Survey Results</Trans>
               </span>
             </div>
             <a
@@ -96,7 +99,7 @@ export default function SurveyAnswersPage() {
               download
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold rounded-xl border border-gray-200 dark:border-gray-700 transition"
             >
-              <Download size={16} /> Export .ods
+              <Download size={16} /> <Trans>Export .ods</Trans>
             </a>
           </div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
@@ -113,7 +116,9 @@ export default function SurveyAnswersPage() {
         {/* Questions Summary */}
         {!survey.aiSummaries.available && survey.questions.some(q => q.questionType === "open-ended") && (
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            AI summaries of open-ended answers are unavailable: no LLM provider is configured on this server.
+            <Trans>
+              AI summaries of open-ended answers are unavailable: no LLM provider is configured on this server.
+            </Trans>
           </p>
         )}
 
@@ -129,8 +134,8 @@ export default function SurveyAnswersPage() {
                   <span className="text-xs font-bold text-gray-400 dark:text-gray-500 font-mono">
                     Q{index + 1}
                   </span>
-                  <span className="text-xs font-semibold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 rounded-md border border-indigo-100/50 dark:border-indigo-900/20 capitalize">
-                    {q.questionType.replace("-", " ")}
+                  <span className="text-xs font-semibold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 rounded-md border border-indigo-100/50 dark:border-indigo-900/20">
+                    {i18n._(QUESTION_TYPE_LABELS[q.questionType])}
                   </span>
                 </div>
               </div>
@@ -188,8 +193,8 @@ export default function SurveyAnswersPage() {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: "Yes", value: q.yesCount },
-                          { name: "No", value: q.noCount }
+                          { name: t`Yes`, value: q.yesCount },
+                          { name: t`No`, value: q.noCount }
                         ]}
                         cx="50%"
                         cy="50%"
@@ -221,7 +226,7 @@ export default function SurveyAnswersPage() {
               {q.questionType === "likert-scale" && q.result && (
                 <div className="h-64 mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={q.result.map((row) => ({ scale: `Rating ${row.options}`, count: row.count }))}>
+                    <BarChart data={q.result.map((row) => ({ scale: t`Rating ${row.options}`, count: row.count }))}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:stroke-gray-800" />
                       <XAxis dataKey="scale" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />

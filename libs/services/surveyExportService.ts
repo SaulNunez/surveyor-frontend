@@ -126,7 +126,7 @@ export async function getSurveyExportData(
     const surveyResults = await executor.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
     const survey = surveyResults[0];
     if (!survey || survey.userId !== userId) {
-        throw new NotFoundError('Survey not found');
+        throw new NotFoundError('surveyNotFound');
     }
 
     // Everything below reaches related rows through the internal uuid.

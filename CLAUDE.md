@@ -13,6 +13,7 @@ npm test             # vitest run — REQUIRES a live Postgres
 npm run test:watch
 npm run db:generate  # drizzle-kit generate: emit a migration from libs/db/schema.ts
 npm run db:migrate   # drizzle-kit migrate: apply migrations in drizzle/
+npm run i18n:extract # lingui extract --clean: refresh locales/*.po from the source
 ```
 
 Run a single test file / single test:
@@ -65,12 +66,14 @@ Next.js 15 App Router, React 19, Tailwind v4, TypeScript strict, `@/*` → repo 
    route can compose several of them into one `db.transaction()`. Preserve this
    parameter when adding services.
 2. `libs/services/` — all data access and authorization. Services throw
-   `NotFoundError` / `InvalidOperationError` (`libs/models/Errors/`); routes map
-   those onto status codes. Ownership checks live here and deliberately throw
+   `NotFoundError` / `InvalidOperationError` (`libs/models/Errors/`), each
+   naming an outcome with an `ErrorCode` rather than a sentence; routes map
+   those onto status codes and onto a message in the caller's language.
+   Ownership checks live here and deliberately throw
    `NotFoundError` (not a 403) when a row belongs to another user, so the API
    does not leak existence.
 3. `app/api/**/route.ts` — thin: `auth()` for the session, parse/validate the
-   body, call services, translate errors. Client pages under `app/` are
+   body, call services, turn errors into statuses and sentences. Client pages under `app/` are
    `"use client"` and talk to these routes via TanStack Query (`fetch` + JSON).
 
 **Type flow.** `libs/models/frontend/` holds the wire types shared by routes and
@@ -139,3 +142,71 @@ profile values itself. `session.user.id` is augmented via module declaration in
 **Routing note.** `/` permanently redirects to `/surveys` (`next.config.ts`).
 Note the two API prefixes are distinct: `/api/survey/[surveyId]/...` covers
 answering (attempts), `/api/surveys/...` covers authoring and summaries.
+
+## Internationalization
+
+Lingui v5, with the SWC macro plugin (`experimental.swcPlugins` in
+`next.config.ts`) and `@lingui/loader` compiling the `.po` catalogs through the
+Turbopack rule beside it. Both are load-bearing: without the plugin the macros
+reach the bundle untransformed and throw at render time, and without the loader
+rule a `.po` import is not a message map. The pinned `@lingui/swc-plugin@5.6.1`
+is the build matching Next 15.5's `swc_core`; a Lingui or Next upgrade has to
+re-check that pairing against the plugin's compatibility table.
+
+**Locale, not routes.** The active locale lives in a `locale` cookie, so every
+URL — the public survey links included — is unchanged by language. A request
+with no cookie negotiates `Accept-Language` instead (`negotiateLocale` in
+`libs/i18n/locales.ts`, which matches `es-MX` onto `es`), and an unknown cookie
+value is ignored rather than trusted. `LOCALES` in that file is the single
+source of truth: `lingui.config.ts` imports it, and adding a locale means adding
+it there, adding its catalog import to `libs/i18n/server.ts`, then running
+`npm run i18n:extract` and translating the new `locales/<locale>.po`.
+
+**Server and client are fed separately.** `initLingui()` (`libs/i18n/server.ts`)
+puts the request's catalog in a request-scoped store, and Lingui's server-side
+`Trans` reads it *synchronously* — so **every layout and page that renders a
+translated Server Component must await `initLingui()` before rendering**, which
+today means `app/layout.tsx`, `app/settings/page.tsx` and `app/surveys/page.tsx`.
+An `I18n` object cannot be serialised across the boundary, so the root layout
+passes the locale and its messages to `LinguiClientProvider`, which builds an
+equivalent instance for the browser; the provider re-activates it when those
+props change, which is what makes the switcher take effect without a reload.
+Because reading the cookie makes the root layout dynamic, no page is statically
+rendered — which this app, being auth- and database-backed throughout, was not
+doing anyway.
+
+**Writing messages.** `Trans` / `useLingui` come from `@lingui/react/macro` and
+work in both Server and Client Components. Inside a component, use the `t` from
+`useLingui()` rather than a bare `t` or `plural` import: those compile against
+Lingui's *global* instance, which this app never activates, so they would render
+untranslated. A module with no component context (`OpenEndedSummaryCard`'s fetch
+helper, `app/settings/actions.ts`) takes the resolved string as a parameter from
+its caller instead. `QUESTION_TYPE_LABELS` (`libs/i18n/questionTypes.ts`) holds
+the reader-facing name of each question variant as a message descriptor — it is
+one more switch over the `questionType` discriminant that a new question type
+has to touch.
+
+**Errors from the API.** A route's own refusals (`Unauthorized`, the guest
+guards, the 400s) use `translate(msg`…`)` from `libs/i18n/apiErrors.ts`, which
+resolves against the request's cookie exactly as a page does. Errors a *service*
+threw go through `errorMessage(reason)` instead, and this is why services carry
+codes: `libs/services/` is what the vitest suite imports directly, and the macro
+transform only runs inside the Next build, so a `msg` in a service would throw
+the moment a test touched it. `ERROR_MESSAGES` (`libs/models/Errors/errorCodes.ts`)
+therefore holds the English for `Error.message` — logs, stack traces, the tests
+that assert on it — while `ERROR_DESCRIPTORS` in `apiErrors.ts` holds the
+sentence the reader gets. `Record<ErrorCode, MessageDescriptor>` is what keeps
+the two lists in step: a new code will not compile without a message. Values for
+a message's `{placeholder}`s ride on the error and are folded into the descriptor,
+since Lingui reads them from there rather than from a second argument.
+
+Anything thrown that carries no code is a fault in the server rather than
+something the reader did. Those used to be forwarded verbatim — driver text, SQL,
+whatever `Error.message` held. They are now logged in full and answered with one
+translatable sentence, which is both the only way to say them in Spanish and the
+end of a small information leak.
+
+Survey content — titles, descriptions, options, labels — is the author's own
+text and is never translated; only the chrome around it is. The English defaults
+an author leaves blank (`Yes`, `No`, `Strongly Agree`) are shown to the
+respondent, so those *are* translated, into the respondent's locale.

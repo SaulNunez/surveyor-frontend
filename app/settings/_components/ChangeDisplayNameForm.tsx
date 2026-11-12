@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { changeDisplayName } from "../actions";
 
 export function ChangeDisplayNameForm() {
+  const { t } = useLingui();
   const [isPending, startTransition] = useTransition();
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,20 +18,20 @@ export function ChangeDisplayNameForm() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (displayName.trim().length < 1) {
-      setError("Display name cannot be empty");
+      setError(t`Display name cannot be empty`);
       return;
     }
     setError(null);
     setSuccess(false);
     startTransition(async () => {
       try {
-        await changeDisplayName(displayName.trim());
+        await changeDisplayName(displayName.trim(), t`Failed to change display name`);
         // Pull the new name into the JWT so the header and settings page agree.
         await update();
         router.refresh();
         setSuccess(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to change display name");
+        setError(err instanceof Error ? err.message : t`Failed to change display name`);
       }
     });
   };
@@ -41,7 +43,7 @@ export function ChangeDisplayNameForm() {
           htmlFor="displayName"
           className="block text-sm font-medium text-gray-700"
         >
-          New Display Name
+          <Trans>New Display Name</Trans>
         </label>
         <div className="mt-1">
           <input
@@ -58,7 +60,7 @@ export function ChangeDisplayNameForm() {
           )}
           {success && (
             <p role="status" className="mt-2 text-sm text-green-600">
-              Display name changed successfully.
+              <Trans>Display name changed successfully.</Trans>
             </p>
           )}
         </div>
@@ -68,7 +70,7 @@ export function ChangeDisplayNameForm() {
         className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         disabled={isPending}
       >
-        {isPending ? "Changing..." : "Change Display Name"}
+        {isPending ? <Trans>Changing...</Trans> : <Trans>Change Display Name</Trans>}
       </button>
     </form>
   );

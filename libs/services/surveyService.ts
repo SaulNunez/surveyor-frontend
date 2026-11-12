@@ -17,7 +17,7 @@ export async function assertSurveyOwnedBy(surveyPublicId: string, userId: string
     const results = await executor.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
 
     if (results.length === 0 || results[0].userId !== userId) {
-        throw new NotFoundError('Survey not found');
+        throw new NotFoundError('surveyNotFound');
     }
 
     return results[0];
@@ -43,7 +43,7 @@ export async function resolveSurveyId(publicId: string, executor: Executor = db)
         .limit(1);
 
     if (results.length === 0) {
-        throw new NotFoundError('Survey not found');
+        throw new NotFoundError('surveyNotFound');
     }
 
     return results[0].id;
@@ -63,7 +63,7 @@ export async function isSurveyOpenToAnyone(surveyPublicId: string, executor: Exe
         .limit(1);
 
     if (results.length === 0) {
-        throw new NotFoundError('Survey not found');
+        throw new NotFoundError('surveyNotFound');
     }
 
     return results[0].openToAnyone;
@@ -85,7 +85,7 @@ export async function getSurvey(surveyPublicId: string) {
     const results = await db.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
 
     if (results.length === 0) {
-        throw new NotFoundError('Survey not found');
+        throw new NotFoundError('surveyNotFound');
     }
 
     const survey = results[0];
@@ -177,7 +177,7 @@ export async function getOptionSelectionCountForQuestion(questionId: string) {
         .limit(1);
 
     if (questionResults.length === 0) {
-        throw new NotFoundError('Question not found');
+        throw new NotFoundError('questionNotFound');
     }
 
     const question = questionResults[0];
@@ -233,7 +233,7 @@ export async function getLikertScaleRatingCountForQuestion(questionId: string) {
         .limit(1);
 
     if (questionResults.length === 0) {
-        throw new NotFoundError('Question not found');
+        throw new NotFoundError('questionNotFound');
     }
 
     const question = questionResults[0];
@@ -285,7 +285,7 @@ export async function getBinaryChoiceCountForQuestion(questionId: string) {
         .limit(1);
 
     if (questionResults.length === 0) {
-        throw new NotFoundError('Question not found');
+        throw new NotFoundError('questionNotFound');
     }
 
     const question = questionResults[0];
@@ -330,7 +330,7 @@ export async function getSurveySummary(surveyPublicId: string): Promise<SurveySu
     const surveyResults = await db.select().from(surveys).where(eq(surveys.publicId, surveyPublicId)).limit(1);
 
     if (surveyResults.length === 0) {
-        throw new NotFoundError("Survey not found");
+        throw new NotFoundError('surveyNotFound');
     }
 
     const survey = surveyResults[0];
