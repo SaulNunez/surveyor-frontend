@@ -7,6 +7,8 @@ import { QuestionDao } from "@/libs/models/frontend/question";
 import { QuestionResponseInput } from "@/libs/models/frontend/result";
 import { db } from "@/libs/db";
 import { rejectGuestOnClosedSurvey } from "./_guard";
+import { msg } from "@lingui/core/macro";
+import { errorMessage, translate } from "@/libs/i18n/apiErrors";
 
 type StoredResponse = Awaited<ReturnType<typeof getResponsesForAttempt>>[number];
 
@@ -117,15 +119,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ surv
         if (error instanceof NotFoundError) {
             return jsonResponse({ attempt: null }, 200);
         }
-        const message = error instanceof Error ? error.message : 'Unexpected exception';
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(error), { status: 500 });
     }
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     const session = await auth();
     if (!session?.user) {
-        return new Response("Unauthorized", { status: 401 });
+        return new Response(await translate(msg`Unauthorized`), { status: 401 });
     }
 
     try {
@@ -136,17 +137,16 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
 
         const attempt = await getExistingAttempt(surveyId, session.user.id);
         if (!attempt) {
-            return new Response("No active attempt found", { status: 404 });
+            return new Response(await translate(msg`No active attempt found`), { status: 404 });
         }
 
         await deleteExistingAttempt(attempt.id, session.user.id);
         return jsonResponse({ success: true }, 200);
     } catch (error) {
         if (error instanceof NotFoundError) {
-            return new Response("Attempt not found", { status: 404 });
+            return new Response(await errorMessage(error), { status: 404 });
         }
-        const message = error instanceof Error ? error.message : "Unexpected error";
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(error), { status: 500 });
     }
 }
 
@@ -162,7 +162,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
 export async function PUT(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     const session = await auth();
     if (!session?.user) {
-        return new Response("Unauthorized", { status: 401 });
+        return new Response(await translate(msg`Unauthorized`), { status: 401 });
     }
 
     try {
@@ -174,13 +174,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
         const body = await request.json();
 
         if (typeof body !== "object" || body === null) {
-            return new Response("Expected an object of answers.", { status: 400 });
+            return new Response(await translate(msg`Expected an object of answers.`), { status: 400 });
         }
 
         const { attemptId: expectedAttemptId, answers } = body;
 
         if (typeof answers !== "object" || answers === null) {
-            return new Response("Expected an 'answers' object.", { status: 400 });
+            return new Response(await translate(msg`Expected an 'answers' object.`), { status: 400 });
         }
 
         const questionsSurvey = await getQuestionsForSurvey(surveyId);
@@ -207,7 +207,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
 
         if (result.conflict) {
             return jsonResponse({
-                error: "This attempt is no longer current. Reload to continue.",
+                error: await translate(msg`This attempt is no longer current. Reload to continue.`),
                 attemptId: result.attemptId
             }, 409);
         }
@@ -215,17 +215,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
         return jsonResponse({ success: true, attemptId: result.attemptId }, 200);
     } catch (error) {
         if (error instanceof NotFoundError) {
-            return new Response("Survey not found", { status: 404 });
+            return new Response(await errorMessage(error), { status: 404 });
         }
-        const message = error instanceof Error ? error.message : "Unexpected error";
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(error), { status: 500 });
     }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     const session = await auth();
     if (!session?.user) {
-        return new Response("Unauthorized", { status: 401 });
+        return new Response(await translate(msg`Unauthorized`), { status: 401 });
     }
 
     try {
@@ -236,7 +235,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
 
         const attempt = await getExistingAttempt(surveyId, session.user.id);
         if (!attempt) {
-            return new Response("No active attempt found to submit.", { status: 404 });
+            return new Response(await translate(msg`No active attempt found to submit.`), { status: 404 });
         }
 
         const [questionsSurvey, storedResponses] = await Promise.all([
@@ -247,7 +246,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
         // One row per question is guaranteed by responses_attempt_question_unique,
         // so a plain count answers "has every question been answered?".
         if (storedResponses.length < questionsSurvey.length) {
-            return new Response("Please answer all questions before submitting.", { status: 400 });
+            return new Response(await translate(msg`Please answer all questions before submitting.`), { status: 400 });
         }
 
         const completedAttempt = await completeExistingAttempt(attempt.id, session.user.id);
@@ -255,9 +254,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
         return jsonResponse({ success: true, attempt: completedAttempt }, 200);
     } catch (error) {
         if (error instanceof NotFoundError) {
-            return new Response("Attempt not found", { status: 404 });
+            return new Response(await errorMessage(error), { status: 404 });
         }
-        const message = error instanceof Error ? error.message : "Unexpected error";
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(error), { status: 500 });
     }
 }

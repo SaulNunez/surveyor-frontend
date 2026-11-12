@@ -1,8 +1,14 @@
 import { redirect } from "next/navigation";
+import { Trans } from "@lingui/react/macro";
 import { ChangeDisplayNameForm } from "./_components/ChangeDisplayNameForm";
 import { auth } from "@/auth";
+import { initLingui } from "@/libs/i18n/server";
 
 export default async function Settings() {
+  // Server Components read their catalog out of a request-scoped store, so this
+  // has to run before anything below renders a <Trans>.
+  await initLingui();
+
   const session = await auth();
   const user = session?.user;
   if (!user) {
@@ -15,16 +21,20 @@ export default async function Settings() {
   }
   return (
     <div className="container mx-auto">
-      <h1 className="text-3xl font-bold">Settings</h1>
+      <h1 className="text-3xl font-bold">
+        <Trans>Settings</Trans>
+      </h1>
       <div className="mt-8">
-        <h2 className="text-xl font-semibold">Profile</h2>
+        <h2 className="text-xl font-semibold">
+          <Trans>Profile</Trans>
+        </h2>
         <div className="mt-4 space-y-4">
           <div>
             <label
               htmlFor="email"
               className="block text-sm font-medium text-gray-700"
             >
-              Email
+              <Trans>Email</Trans>
             </label>
             <div className="mt-1">
               <input
@@ -43,7 +53,7 @@ export default async function Settings() {
               htmlFor="name"
               className="block text-sm font-medium text-gray-700"
             >
-              Display Name
+              <Trans>Display Name</Trans>
             </label>
             <div className="mt-1">
               <input
@@ -60,7 +70,9 @@ export default async function Settings() {
         </div>
       </div>
       <div className="mt-8">
-        <h2 className="text-xl font-semibold">Change Display Name</h2>
+        <h2 className="text-xl font-semibold">
+          <Trans>Change Display Name</Trans>
+        </h2>
         <ChangeDisplayNameForm />
       </div>
     </div>

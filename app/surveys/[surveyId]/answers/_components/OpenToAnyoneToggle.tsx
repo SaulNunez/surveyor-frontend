@@ -4,6 +4,7 @@ import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Globe, Lock, Loader2 } from "lucide-react";
 import { SurveySummaryDao } from "@/libs/models/frontend/survey";
+import { Trans } from "@lingui/react/macro";
 
 /**
  * Lets the survey's author open it to guests, or close it again. The title and
@@ -47,12 +48,17 @@ export function OpenToAnyoneToggle({ survey }: { survey: SurveySummaryDao }) {
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {isOpen ? "Open to anyone" : "Account required"}
+              {isOpen ? <Trans>Open to anyone</Trans> : <Trans>Account required</Trans>}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {isOpen
-                ? "Anyone with the link can answer without an account. The same person can answer again from a different browser."
-                : "Only people signed in with an account can answer."}
+              {isOpen ? (
+                <Trans>
+                  Anyone with the link can answer without an account. The same person can
+                  answer again from a different browser.
+                </Trans>
+              ) : (
+                <Trans>Only people signed in with an account can answer.</Trans>
+              )}
             </p>
           </div>
         </div>
@@ -63,7 +69,7 @@ export function OpenToAnyoneToggle({ survey }: { survey: SurveySummaryDao }) {
           className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-xl border border-gray-200 dark:border-gray-700 transition"
         >
           {mutation.isPending && <Loader2 size={14} className="animate-spin" />}
-          {isOpen ? "Require an account" : "Open to anyone"}
+          {isOpen ? <Trans>Require an account</Trans> : <Trans>Open to anyone</Trans>}
         </button>
       </div>
       {mutation.error && (

@@ -25,7 +25,7 @@ export async function createAnonymousUserForSurvey(
     const openToAnyone = await isSurveyOpenToAnyone(surveyPublicId, executor);
 
     if (!openToAnyone) {
-        throw new InvalidOperationError('This survey requires an account to answer');
+        throw new InvalidOperationError('surveyRequiresAccount');
     }
 
     return await createAnonymousUser(executor);

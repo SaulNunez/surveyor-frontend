@@ -22,11 +22,14 @@ import { v7 as uuidv7 } from 'uuid';
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { SurveyInput } from "@/libs/models/frontend/survey";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { QUESTION_TYPE_LABELS } from "@/libs/i18n/questionTypes";
 
 type QuestionDaoInScreen = QuestionInput & { id: string };
 
 export default function SurveyCreate() {
   const router = useRouter();
+  const { i18n, t } = useLingui();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [descTab, setDescTab] = useState("edit");
@@ -86,7 +89,7 @@ export default function SurveyCreate() {
       newQuestion = {
         title: "",
         questionType: 'multiple-choice',
-        options: ["Option 1", "Option 2"],
+        options: [t`Option 1`, t`Option 2`],
         id: uuidv7()
       };
     }
@@ -156,19 +159,21 @@ export default function SurveyCreate() {
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="max-w-3xl mx-auto">
         <header className="mb-8 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200/60 dark:border-zinc-800/80 shadow-sm">
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-6 tracking-tight">Create Survey</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-6 tracking-tight">
+            <Trans>Create Survey</Trans>
+          </h1>
           
           <div className="space-y-5">
             <div>
               <label htmlFor="survey-title" className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">
-                Survey Title
+                <Trans>Survey Title</Trans>
               </label>
               <input
                 id="survey-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter a descriptive title for your survey"
+                placeholder={t`Enter a descriptive title for your survey`}
                 className="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
               />
             </div>
@@ -177,7 +182,7 @@ export default function SurveyCreate() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300">
-                  Survey Description <span className="text-xs font-normal text-gray-400 dark:text-zinc-500">(Markdown supported)</span>
+                  <Trans>Survey Description</Trans> <span className="text-xs font-normal text-gray-400 dark:text-zinc-500"><Trans>(Markdown supported)</Trans></span>
                 </label>
                 <div className="flex bg-gray-100 dark:bg-zinc-800 p-0.5 rounded-lg">
                   <button
@@ -189,7 +194,7 @@ export default function SurveyCreate() {
                         : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
                     }`}
                   >
-                    <Edit2 size={12} /> Edit
+                    <Edit2 size={12} /> <Trans>Edit</Trans>
                   </button>
                   <button
                     type="button"
@@ -200,7 +205,7 @@ export default function SurveyCreate() {
                         : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
                     }`}
                   >
-                    <Eye size={12} /> Preview
+                    <Eye size={12} /> <Trans>Preview</Trans>
                   </button>
                 </div>
               </div>
@@ -208,7 +213,7 @@ export default function SurveyCreate() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Provide context, instructions, or goals for this survey..."
+                  placeholder={t`Provide context, instructions, or goals for this survey...`}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700/80 rounded-xl h-32 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition resize-y"
                 />
               ) : (
@@ -216,7 +221,9 @@ export default function SurveyCreate() {
                   {description ? (
                     <ReactMarkdown>{description}</ReactMarkdown>
                   ) : (
-                    <p className="text-gray-400 dark:text-zinc-500 italic text-sm">Nothing to preview yet.</p>
+                    <p className="text-gray-400 dark:text-zinc-500 italic text-sm">
+                      <Trans>Nothing to preview yet.</Trans>
+                    </p>
                   )}
                 </div>
               )}
@@ -232,12 +239,14 @@ export default function SurveyCreate() {
                 />
                 <span>
                   <span className="block text-sm font-semibold text-gray-900 dark:text-white">
-                    Open to anyone
+                    <Trans>Open to anyone</Trans>
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                    Anyone with the link can answer without creating an account. Because
-                    guests are identified by their browser, the same person can answer more
-                    than once from a different browser or device.
+                    <Trans>
+                      Anyone with the link can answer without creating an account. Because
+                      guests are identified by their browser, the same person can answer more
+                      than once from a different browser or device.
+                    </Trans>
                   </span>
                 </span>
               </label>
@@ -248,16 +257,22 @@ export default function SurveyCreate() {
         {/* Questions Section */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Questions</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              <Trans>Questions</Trans>
+            </h2>
             <span className="text-xs font-semibold px-2.5 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 rounded-full">
-              {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+              <Plural value={questions.length} one="# question" other="# questions" />
             </span>
           </div>
 
           {questions.length === 0 ? (
             <div className="text-center py-12 px-4 border-2 border-dashed border-gray-250 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900/50">
-              <p className="text-gray-500 dark:text-zinc-400 font-medium mb-1">No questions added yet</p>
-              <p className="text-xs text-gray-400 dark:text-zinc-500">Choose a question type below to start building your survey.</p>
+              <p className="text-gray-500 dark:text-zinc-400 font-medium mb-1">
+                <Trans>No questions added yet</Trans>
+              </p>
+              <p className="text-xs text-gray-400 dark:text-zinc-500">
+                <Trans>Choose a question type below to start building your survey.</Trans>
+              </p>
             </div>
           ) : (
             <DragDropContext onDragEnd={onDragEnd}>
@@ -287,8 +302,8 @@ export default function SurveyCreate() {
                                 <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider font-mono">
                                   Q{index + 1}
                                 </span>
-                                <span className="text-xs font-semibold px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md border border-blue-100/50 dark:border-blue-800/20 capitalize">
-                                  {q.questionType.replace("-", " ")}
+                                <span className="text-xs font-semibold px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md border border-blue-100/50 dark:border-blue-800/20">
+                                  {i18n._(QUESTION_TYPE_LABELS[q.questionType])}
                                 </span>
                               </div>
                               <div className="flex gap-1">
@@ -297,7 +312,7 @@ export default function SurveyCreate() {
                                   onClick={() => moveQuestion(index, "up")}
                                   disabled={index === 0}
                                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 disabled:opacity-30 disabled:pointer-events-none rounded-lg hover:bg-gray-150 dark:hover:bg-zinc-800 transition"
-                                  title="Move Up"
+                                  title={t`Move Up`}
                                 >
                                   <ArrowUp size={16} />
                                 </button>
@@ -306,7 +321,7 @@ export default function SurveyCreate() {
                                   onClick={() => moveQuestion(index, "down")}
                                   disabled={index === questions.length - 1}
                                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 disabled:opacity-30 disabled:pointer-events-none rounded-lg hover:bg-gray-150 dark:hover:bg-zinc-800 transition"
-                                  title="Move Down"
+                                  title={t`Move Down`}
                                 >
                                   <ArrowDown size={16} />
                                 </button>
@@ -314,7 +329,7 @@ export default function SurveyCreate() {
                                   type="button"
                                   onClick={() => removeQuestion(q.id)}
                                   className="p-1 text-red-400 hover:text-red-600 dark:text-red-500/80 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition"
-                                  title="Remove Question"
+                                  title={t`Remove Question`}
                                 >
                                   <Trash2 size={16} />
                                 </button>
@@ -324,13 +339,13 @@ export default function SurveyCreate() {
                             <div className="p-5 space-y-4">
                               <div>
                                 <label className="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                                  Question Title
+                                  <Trans>Question Title</Trans>
                                 </label>
                                 <input
                                   type="text"
                                   value={q.title}
                                   onChange={(e) => updateQuestion(q.id, "title", e.target.value)}
-                                  placeholder="What would you like to ask?"
+                                  placeholder={t`What would you like to ask?`}
                                   className="w-full px-3.5 py-2 bg-gray-50 dark:bg-zinc-800/40 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                 />
                               </div>
@@ -339,7 +354,7 @@ export default function SurveyCreate() {
                               {q.questionType === "multiple-choice" && (
                                 <div className="space-y-3 pt-1">
                                   <label className="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-                                    Options
+                                    <Trans>Options</Trans>
                                   </label>
                                   <div className="space-y-2.5">
                                     {q.options.map((opt, idx) => (
@@ -349,7 +364,7 @@ export default function SurveyCreate() {
                                           type="text"
                                           value={opt}
                                           onChange={(e) => updateOption(q.id, idx, e.target.value)}
-                                          placeholder={`Option ${idx + 1}`}
+                                          placeholder={t`Option ${(idx + 1)}`}
                                           className="flex-1 px-3 py-1.5 bg-white dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-700/60 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                         />
                                         <button
@@ -364,7 +379,7 @@ export default function SurveyCreate() {
                                             );
                                           }}
                                           className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-                                          title="Remove option"
+                                          title={t`Remove option`}
                                         >
                                           <Trash2 size={14} />
                                         </button>
@@ -376,7 +391,7 @@ export default function SurveyCreate() {
                                     onClick={() => addOption(q.id)}
                                     className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mt-1 transition"
                                   >
-                                    <Plus size={14} /> Add Option
+                                    <Plus size={14} /> <Trans>Add Option</Trans>
                                   </button>
                                 </div>
                               )}
@@ -386,25 +401,25 @@ export default function SurveyCreate() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                                   <div>
                                     <label className="block text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1">
-                                      Lowest Value Label (e.g. Strongly Disagree)
+                                      <Trans>Lowest Value Label (e.g. Strongly Disagree)</Trans>
                                     </label>
                                     <input
                                       type="text"
                                       value={q.negativeLabel}
                                       onChange={(e) => updateQuestion(q.id, "negativeLabel", e.target.value)}
-                                      placeholder="Negative label (1)"
+                                      placeholder={t`Negative label (1)`}
                                       className="w-full px-3.5 py-2 bg-white dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-700/60 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                     />
                                   </div>
                                   <div>
                                     <label className="block text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1">
-                                      Highest Value Label (e.g. Strongly Agree)
+                                      <Trans>Highest Value Label (e.g. Strongly Agree)</Trans>
                                     </label>
                                     <input
                                       type="text"
                                       value={q.positiveLabel}
                                       onChange={(e) => updateQuestion(q.id, "positiveLabel", e.target.value)}
-                                      placeholder="Positive label (5)"
+                                      placeholder={t`Positive label (5)`}
                                       className="w-full px-3.5 py-2 bg-white dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-700/60 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                     />
                                   </div>
@@ -416,25 +431,25 @@ export default function SurveyCreate() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                                   <div>
                                     <label className="block text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1">
-                                      False/Negative Label (e.g. No)
+                                      <Trans>False/Negative Label (e.g. No)</Trans>
                                     </label>
                                     <input
                                       type="text"
                                       value={q.negativeLabel}
                                       onChange={(e) => updateQuestion(q.id, "negativeLabel", e.target.value)}
-                                      placeholder="Negative label"
+                                      placeholder={t`Negative label`}
                                       className="w-full px-3.5 py-2 bg-white dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-700/60 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                     />
                                   </div>
                                   <div>
                                     <label className="block text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1">
-                                      True/Positive Label (e.g. Yes)
+                                      <Trans>True/Positive Label (e.g. Yes)</Trans>
                                     </label>
                                     <input
                                       type="text"
                                       value={q.positiveLabel}
                                       onChange={(e) => updateQuestion(q.id, "positiveLabel", e.target.value)}
-                                      placeholder="Positive label"
+                                      placeholder={t`Positive label`}
                                       className="w-full px-3.5 py-2 bg-white dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-700/60 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                     />
                                   </div>
@@ -456,7 +471,7 @@ export default function SurveyCreate() {
         {/* Add Question Controls (Secondary Action Group) */}
         <div className="bg-white dark:bg-zinc-900 border border-dashed border-gray-250 dark:border-zinc-800/80 rounded-2xl p-6 text-center mb-8 shadow-xs">
           <h3 className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-4">
-            Add a new question to your survey
+            <Trans>Add a new question to your survey</Trans>
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
@@ -465,7 +480,7 @@ export default function SurveyCreate() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700/80 text-gray-700 dark:text-zinc-200 text-sm font-semibold rounded-xl transition"
             >
               <MessageSquare size={16} className="text-gray-500 dark:text-zinc-400" />
-              Open Ended
+              <Trans>Open Ended</Trans>
             </button>
             <button
               type="button"
@@ -473,7 +488,7 @@ export default function SurveyCreate() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700/80 text-gray-700 dark:text-zinc-200 text-sm font-semibold rounded-xl transition"
             >
               <List size={16} className="text-gray-500 dark:text-zinc-400" />
-              Multiple Choice
+              <Trans>Multiple Choice</Trans>
             </button>
             <button
               type="button"
@@ -481,7 +496,7 @@ export default function SurveyCreate() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700/80 text-gray-700 dark:text-zinc-200 text-sm font-semibold rounded-xl transition"
             >
               <ToggleLeft size={16} className="text-gray-500 dark:text-zinc-400" />
-              Binary Choice
+              <Trans>Binary Choice</Trans>
             </button>
             <button
               type="button"
@@ -489,7 +504,7 @@ export default function SurveyCreate() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700/80 text-gray-700 dark:text-zinc-200 text-sm font-semibold rounded-xl transition"
             >
               <Sliders size={16} className="text-gray-500 dark:text-zinc-400" />
-              Likert Scale
+              <Trans>Likert Scale</Trans>
             </button>
           </div>
         </div>
@@ -497,8 +512,12 @@ export default function SurveyCreate() {
         {/* Primary Action Section */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-800/80 rounded-2xl p-5 shadow-sm">
           <div className="text-left">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Ready to publish?</h4>
-            <p className="text-xs text-gray-500 dark:text-zinc-400">Please make sure you have added a title and configured your questions.</p>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              <Trans>Ready to publish?</Trans>
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">
+              <Trans>Please make sure you have added a title and configured your questions.</Trans>
+            </p>
           </div>
           <button
             type="button"
@@ -509,12 +528,12 @@ export default function SurveyCreate() {
             {surveyMutation.isPending ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                Creating Survey...
+                <Trans>Creating Survey...</Trans>
               </>
             ) : (
               <>
                 <Send size={16} />
-                Create Survey
+                <Trans>Create Survey</Trans>
               </>
             )}
           </button>

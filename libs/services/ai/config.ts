@@ -99,17 +99,16 @@ export function resolveAiProviderConfig(): AiProviderConfig | null {
 
     if (requested) {
         if (!isProviderName(requested)) {
-            throw new InvalidOperationError(
-                `Unknown AI_SUMMARY_PROVIDER "${requested}". Expected one of: anthropic, openai, ollama.`
-            );
+            throw new InvalidOperationError('unknownAiProviderRequested', { provider: requested });
         }
 
         const config = RESOLVERS[requested]();
         if (!config) {
             const missing = requested === 'ollama' ? 'OLLAMA_BASE_URL' : `${requested.toUpperCase()}_API_KEY`;
-            throw new InvalidOperationError(
-                `AI_SUMMARY_PROVIDER is set to "${requested}" but ${missing} is not configured.`
-            );
+            throw new InvalidOperationError('aiProviderCredentialsMissing', {
+                provider: requested,
+                envVar: missing,
+            });
         }
         return config;
     }

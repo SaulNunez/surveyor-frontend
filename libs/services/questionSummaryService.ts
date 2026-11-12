@@ -90,26 +90,24 @@ export async function generateSummaryForQuestion(
     // survey named in the URL — is reported as missing rather than forbidden,
     // so the API does not leak which question ids exist.
     if (questionRows.length === 0 || questionRows[0].ownerId !== userId) {
-        throw new NotFoundError('Question not found');
+        throw new NotFoundError('questionNotFound');
     }
 
     const question = questionRows[0];
     if (question.questionType !== 'open-ended') {
-        throw new InvalidOperationError('Only open-ended questions can be summarized');
+        throw new InvalidOperationError('onlyOpenEndedCanBeSummarized');
     }
 
     const allResponses = await getOpenEndedResponses(questionId, executor);
     // Checked before the provider is resolved: an empty question should not
     // report a configuration problem, and should never spend tokens.
     if (allResponses.length === 0) {
-        throw new InvalidOperationError('There are no responses to summarize yet');
+        throw new InvalidOperationError('noResponsesToSummarize');
     }
 
     const summaryProvider = provider ?? resolveSummaryProvider();
     if (!summaryProvider) {
-        throw new InvalidOperationError(
-            'No AI provider is configured on this server. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or OLLAMA_BASE_URL.'
-        );
+        throw new InvalidOperationError('noAiProviderConfigured');
     }
 
     const { kept, total } = capResponses(allResponses);

@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Home, Menu } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import { Trans } from "@lingui/react/macro";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export default function Header() {
     const { data: session } = useSession();
@@ -38,7 +40,7 @@ export default function Header() {
                                 href="/home"
                                 className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
-                                Home
+                                <Trans>Home</Trans>
                             </a>
                         </div>
                     )}
@@ -55,64 +57,70 @@ export default function Header() {
                     className="hidden sm:flex items-center gap-2 text-black dark:text-white hover:underline"
                 >
                     <Home className="w-5 h-5" />
-                    <span>Home</span>
+                    <span><Trans>Home</Trans></span>
                 </a>
             )}
 
             {/* User Menu / Auth Buttons */}
-            {isGuest ? (
-                <div className="flex items-center gap-3">
-                    <span className="hidden sm:inline text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                        Guest
-                    </span>
-                    <Link
-                        href="/register"
-                        className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700"
-                    >
-                        Create account
-                    </Link>
-                </div>
-            ) : session?.user ? (
-                <div className="relative">
-                    <button
-                        onClick={() => setMenuOpen(!menuOpen)}
-                        className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700"
-                    >
-                        {userInitial}
-                    </button>
-                    {menuOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-lg z-50">
-                            <a
-                                href="#settings"
-                                className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                Settings
-                            </a>
-                            <button
-                                onClick={() => signOut()}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                Logout
-                            </button>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <div className="flex items-center gap-2">
-                    <Link
-                        href="/login"
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400"
-                    >
-                        Login
-                    </Link>
-                    <Link
-                        href="/register"
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                    >
-                        Register
-                    </Link>
-                </div>
-            )}
+            <div className="flex items-center gap-3">
+                {/* Reachable signed in or out: someone who cannot read the login
+                    page cannot sign in to change their language later. */}
+                <LanguageSwitcher />
+
+                {isGuest ? (
+                    <div className="flex items-center gap-3">
+                        <span className="hidden sm:inline text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                            <Trans>Guest</Trans>
+                        </span>
+                        <Link
+                            href="/register"
+                            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700"
+                        >
+                            <Trans>Create account</Trans>
+                        </Link>
+                    </div>
+                ) : session?.user ? (
+                    <div className="relative">
+                        <button
+                            onClick={() => setMenuOpen(!menuOpen)}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700"
+                        >
+                            {userInitial}
+                        </button>
+                        {menuOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-lg z-50">
+                                <a
+                                    href="#settings"
+                                    className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                    <Trans>Settings</Trans>
+                                </a>
+                                <button
+                                    onClick={() => signOut()}
+                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                    <Trans>Logout</Trans>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href="/login"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400"
+                        >
+                            <Trans>Login</Trans>
+                        </Link>
+                        <Link
+                            href="/register"
+                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                        >
+                            <Trans>Register</Trans>
+                        </Link>
+                    </div>
+                )}
+            </div>
         </header>
     );
 }

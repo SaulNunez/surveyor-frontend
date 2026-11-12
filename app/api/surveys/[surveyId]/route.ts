@@ -3,6 +3,8 @@ import { editSurvey, getSurvey } from "@/libs/services/surveyService";
 import { auth } from "@/auth";
 
 import { NotFoundError } from "@/libs/models/Errors/notFoundError";
+import { msg } from "@lingui/core/macro";
+import { errorMessage, translate } from "@/libs/i18n/apiErrors";
 
 export async function GET(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     try {
@@ -15,11 +17,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ surv
     }
     catch (reason) {
         if (reason instanceof NotFoundError) {
-            return new Response(reason.message, { status: 404 });
+            return new Response(await errorMessage(reason), { status: 404 });
         }
-        const message = reason instanceof Error ? reason.message : 'Unexpected exception'
-
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(reason), { status: 500 });
     }
 }
 
@@ -34,11 +34,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
     const session = await auth();
 
     if (!session?.user) {
-        return new Response("Unauthorized", { status: 401 });
+        return new Response(await translate(msg`Unauthorized`), { status: 401 });
     }
 
     if (session.user.isAnonymous) {
-        return new Response("Guest accounts cannot edit surveys.", { status: 403 });
+        return new Response(await translate(msg`Guest accounts cannot edit surveys.`), { status: 403 });
     }
 
     try {
@@ -46,7 +46,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
         const body = await request.json();
 
         if (typeof body?.title !== "string" || typeof body?.description !== "string") {
-            return new Response("Bad request. Please check both title and description are defined.", { status: 400 });
+            return new Response(
+                await translate(msg`Bad request. Please check both title and description are defined.`),
+                { status: 400 }
+            );
         }
 
         const survey = await editSurvey(
@@ -64,10 +67,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ surv
     }
     catch (reason) {
         if (reason instanceof NotFoundError) {
-            return new Response(reason.message, { status: 404 });
+            return new Response(await errorMessage(reason), { status: 404 });
         }
-        const message = reason instanceof Error ? reason.message : 'Unexpected exception'
-
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(reason), { status: 500 });
     }
 }

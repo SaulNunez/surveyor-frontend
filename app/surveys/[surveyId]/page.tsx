@@ -20,6 +20,9 @@ import {
   UserPlus
 } from "lucide-react";
 import Link from "next/link";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
+import { QUESTION_TYPE_LABELS } from "@/libs/i18n/questionTypes";
 
 // Answers are batched for this long before being saved, so holding down a key
 // produces one request rather than dozens.
@@ -29,6 +32,7 @@ export default function SurveyAnswer() {
   const params = useParams();
   const surveyId = params?.surveyId as string;
   const router = useRouter();
+  const { i18n, t } = useLingui();
 
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
@@ -53,7 +57,7 @@ export default function SurveyAnswer() {
   const { data: attemptData, refetch: refetchAttempt } = useQuery({
     queryKey: ['surveyAttempt', surveyId],
     queryFn: () => fetch(`/api/survey/${surveyId}/attempt`).then(res => {
-      if (!res.ok) throw new Error("Failed to fetch attempt");
+      if (!res.ok) throw new Error(t`Failed to fetch attempt`);
       return res.json();
     }),
     enabled: !!surveyId && isLoggedIn
@@ -170,7 +174,7 @@ export default function SurveyAnswer() {
         // Someone restarted this attempt elsewhere; the answers we were holding
         // belong to an attempt that no longer exists.
         setSaveState("error");
-        alert("This attempt was restarted somewhere else. Reloading your progress.");
+        alert(t`This attempt was restarted somewhere else. Reloading your progress.`);
         discardLocalResponses.current = true;
         await refetchAttempt();
         return;
@@ -196,7 +200,7 @@ export default function SurveyAnswer() {
       pendingAnswers.current = { ...answers, ...pendingAnswers.current };
       setSaveState("error");
     }
-  }, [surveyId, refetchAttempt, ensureAnswerIdentity]);
+  }, [surveyId, refetchAttempt, ensureAnswerIdentity, t]);
 
   // Don't strand answers the user typed just before navigating away.
   useEffect(() => {
@@ -206,7 +210,7 @@ export default function SurveyAnswer() {
   }, []);
 
   const handleStartAnew = async () => {
-    if (!confirm("Are you sure you want to discard your current progress and start over?")) {
+    if (!confirm(t`Are you sure you want to discard your current progress and start over?`)) {
       return;
     }
     setIsResetting(true);
@@ -231,11 +235,11 @@ export default function SurveyAnswer() {
         discardLocalResponses.current = true;
         await refetchAttempt();
       } else {
-        alert("Failed to reset attempt. Please try again.");
+        alert(t`Failed to reset attempt. Please try again.`);
       }
     } catch (err) {
       console.error(err);
-      alert("An error occurred while resetting your attempt.");
+      alert(t`An error occurred while resetting your attempt.`);
     } finally {
       setIsResetting(false);
     }
@@ -266,7 +270,16 @@ export default function SurveyAnswer() {
     // Check if all questions are answered
     const unansweredCount = survey.questions.filter(q => !responses[q.id]).length;
     if (unansweredCount > 0) {
-      alert(`Please answer all questions before submitting. You have ${unansweredCount} unanswered question(s).`);
+      // `t` here is the one from `useLingui`, so the plural resolves against
+      // the catalog in React context rather than Lingui's global instance.
+      alert(
+        t({
+          message: plural(unansweredCount, {
+            one: "Please answer all questions before submitting. You have # unanswered question.",
+            other: "Please answer all questions before submitting. You have # unanswered questions.",
+          }),
+        }),
+      );
       return;
     }
 
@@ -281,17 +294,17 @@ export default function SurveyAnswer() {
       });
 
       if (response.ok) {
-        alert("Survey submitted successfully!");
+        alert(t`Survey submitted successfully!`);
         router.push("/surveys");
       } else if (response.status === 401 || response.status === 403) {
-        alert("Sign in to submit your answers.");
+        alert(t`Sign in to submit your answers.`);
       } else {
         const text = await response.text();
-        alert(`Failed to submit survey: ${text}`);
+        alert(t`Failed to submit survey: ${text}`);
       }
     } catch (err) {
       console.error(err);
-      alert("An error occurred during submission.");
+      alert(t`An error occurred during submission.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -313,7 +326,7 @@ export default function SurveyAnswer() {
           href="/surveys" 
           className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-xl border border-gray-200 dark:border-gray-700 transition"
         >
-          <ArrowLeft size={16} /> Back to Dashboard
+          <ArrowLeft size={16} /> <Trans>Back to Dashboard</Trans>
         </Link>
       </div>
     );
@@ -328,7 +341,7 @@ export default function SurveyAnswer() {
             href="/surveys"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
           >
-            <ArrowLeft size={16} /> Back to Surveys
+            <ArrowLeft size={16} /> <Trans>Back to Surveys</Trans>
           </Link>
         </div>
 
@@ -342,11 +355,13 @@ export default function SurveyAnswer() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                    You&apos;re answering as a guest
+                    <Trans>You&apos;re answering as a guest</Trans>
                   </h3>
                   <p className="text-xs text-blue-700/80 dark:text-blue-300/70 mt-0.5">
-                    Your answers are saved to a guest account <strong>on this device</strong>.
-                    Create an account to keep them.
+                    <Trans>
+                      Your answers are saved to a guest account <strong>on this device</strong>.
+                      Create an account to keep them.
+                    </Trans>
                   </p>
                 </div>
               </div>
@@ -354,7 +369,7 @@ export default function SurveyAnswer() {
                 href="/register"
                 className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
               >
-                Create account
+                <Trans>Create account</Trans>
               </Link>
             </div>
           ) : (
@@ -365,11 +380,13 @@ export default function SurveyAnswer() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-red-900 dark:text-red-100">
-                    This survey needs a full account
+                    <Trans>This survey needs a full account</Trans>
                   </h3>
                   <p className="text-xs text-red-700/80 dark:text-red-300/70 mt-0.5">
-                    Guest accounts cannot answer it, so nothing you type here is being
-                    saved. Create an account to answer.
+                    <Trans>
+                      Guest accounts cannot answer it, so nothing you type here is being
+                      saved. Create an account to answer.
+                    </Trans>
                   </p>
                 </div>
               </div>
@@ -377,7 +394,7 @@ export default function SurveyAnswer() {
                 href="/register"
                 className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
               >
-                Create account
+                <Trans>Create account</Trans>
               </Link>
             </div>
           )
@@ -392,10 +409,10 @@ export default function SurveyAnswer() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100">
-                  Resuming Existing Attempt
+                  <Trans>Resuming Existing Attempt</Trans>
                 </h3>
                 <p className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-0.5">
-                  We&apos;ve loaded your previous responses. You can modify them or start fresh.
+                  <Trans>We&apos;ve loaded your previous responses. You can modify them or start fresh.</Trans>
                 </p>
               </div>
             </div>
@@ -406,7 +423,7 @@ export default function SurveyAnswer() {
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow active:scale-[0.98] transition cursor-pointer self-start sm:self-center"
             >
               <RotateCcw size={14} className={isResetting ? "animate-spin" : ""} />
-              {isResetting ? "Starting Anew..." : "Start Anew"}
+              {isResetting ? <Trans>Starting Anew...</Trans> : <Trans>Start Anew</Trans>}
             </button>
           </div>
         )}
@@ -436,14 +453,14 @@ export default function SurveyAnswer() {
                   <span className="text-xs font-bold text-gray-400 dark:text-gray-500 font-mono">
                     Q{index + 1}
                   </span>
-                  <span className="text-xs font-semibold px-2.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md border border-blue-100/50 dark:border-blue-800/20 capitalize">
-                    {q.questionType.replace("-", " ")}
+                  <span className="text-xs font-semibold px-2.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md border border-blue-100/50 dark:border-blue-800/20">
+                    {i18n._(QUESTION_TYPE_LABELS[q.questionType])}
                   </span>
                 </div>
               </div>
 
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                {q.title || <span className="text-gray-400 dark:text-gray-650 italic font-normal">Untitled Question</span>}
+                {q.title || <span className="text-gray-400 dark:text-gray-650 italic font-normal"><Trans>Untitled Question</Trans></span>}
               </h2>
 
               {/* Open Question */}
@@ -452,7 +469,7 @@ export default function SurveyAnswer() {
                   <MessageSquare size={16} className="absolute top-3.5 left-3.5 text-gray-400" />
                   <textarea
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition resize-y min-h-[6rem]"
-                    placeholder="Type your response here..."
+                    placeholder={t`Type your response here...`}
                     value={responses[q.id] || ""}
                     onChange={(e) => handleResponse(q.id, e.target.value)}
                   />
@@ -492,8 +509,8 @@ export default function SurveyAnswer() {
               {q.questionType === "binary-choice" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
-                    { val: "negative", label: q.negativeLabel || "No" },
-                    { val: "positive", label: q.positiveLabel || "Yes" }
+                    { val: "negative", label: q.negativeLabel || t`No` },
+                    { val: "positive", label: q.positiveLabel || t`Yes` }
                   ].map(({ val, label }) => {
                     const isSelected = responses[q.id] === val;
                     return (
@@ -524,8 +541,8 @@ export default function SurveyAnswer() {
               {q.questionType === "likert-scale" && (
                 <div className="pt-1">
                   <div className="flex justify-between mb-3 text-xs font-semibold text-gray-500 dark:text-gray-450 uppercase tracking-wider select-none">
-                    <span>{q.negativeLabel || "Strongly Disagree"}</span>
-                    <span>{q.positiveLabel || "Strongly Agree"}</span>
+                    <span>{q.negativeLabel || t`Strongly Disagree`}</span>
+                    <span>{q.positiveLabel || t`Strongly Agree`}</span>
                   </div>
                   <div className="grid grid-cols-5 gap-2.5">
                     {[1, 2, 3, 4, 5].map((num) => {
@@ -561,24 +578,28 @@ export default function SurveyAnswer() {
         {/* Footer / Submit survey */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow">
           <div className="text-left">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Ready to send?</h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Make sure you have completed all questions before sending.</p>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              <Trans>Ready to send?</Trans>
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              <Trans>Make sure you have completed all questions before sending.</Trans>
+            </p>
             {saveState !== "idle" && (
               <p
                 role="status"
                 className={`text-xs mt-1 ${saveState === "error" || saveState === "needs-account" ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}
               >
-                {saveState === "saving" && "Saving your progress..."}
-                {saveState === "saved" && "Progress saved."}
-                {saveState === "error" && "Could not save your progress. It will be retried."}
+                {saveState === "saving" && <Trans>Saving your progress...</Trans>}
+                {saveState === "saved" && <Trans>Progress saved.</Trans>}
+                {saveState === "error" && <Trans>Could not save your progress. It will be retried.</Trans>}
                 {saveState === "needs-account" && (
-                  <>
+                  <Trans>
                     Your answers are not being saved.{" "}
                     <Link href="/login" className="underline font-semibold">
                       Sign in to save them
                     </Link>
                     .
-                  </>
+                  </Trans>
                 )}
               </p>
             )}
@@ -590,7 +611,7 @@ export default function SurveyAnswer() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all cursor-pointer"
           >
             <Send size={16} className={isSubmitting ? "animate-pulse" : ""} />
-            {isSubmitting ? "Submitting..." : "Submit Responses"}
+            {isSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit Responses</Trans>}
           </button>
         </div>
       </div>
