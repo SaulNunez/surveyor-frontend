@@ -32,9 +32,7 @@ export function createAnthropicProvider(config: AiProviderConfig): SummaryProvid
             }
 
             if (response.stop_reason === 'refusal') {
-                throw new InvalidOperationError(
-                    'The model declined to summarize these responses.'
-                );
+                throw new InvalidOperationError('aiModelDeclined');
             }
 
             const text = response.content
@@ -44,7 +42,7 @@ export function createAnthropicProvider(config: AiProviderConfig): SummaryProvid
                 .trim();
 
             if (text.length === 0) {
-                throw new InvalidOperationError('The model returned an empty summary.');
+                throw new InvalidOperationError('aiEmptySummary');
             }
 
             return text;
@@ -61,23 +59,25 @@ function toInvalidOperationError(reason: unknown): InvalidOperationError {
     console.error('Anthropic summary request failed:', reason);
 
     if (reason instanceof Anthropic.AuthenticationError) {
-        return new InvalidOperationError(
-            'The configured Anthropic API key was rejected. Check ANTHROPIC_API_KEY on the server.'
-        );
+        return new InvalidOperationError('aiCredentialsRejected', {
+            provider: 'Anthropic',
+            envVar: 'ANTHROPIC_API_KEY',
+        });
     }
     if (reason instanceof Anthropic.RateLimitError) {
-        return new InvalidOperationError('Anthropic rate limit reached. Try again shortly.');
+        return new InvalidOperationError('aiRateLimited', { provider: 'Anthropic' });
     }
     if (reason instanceof Anthropic.NotFoundError) {
-        return new InvalidOperationError(
-            'The configured Anthropic model was not found. Check ANTHROPIC_MODEL on the server.'
-        );
+        return new InvalidOperationError('aiModelNotFound', { envVar: 'ANTHROPIC_MODEL' });
     }
     if (reason instanceof Anthropic.APIConnectionError) {
-        return new InvalidOperationError('Could not reach Anthropic. Try again shortly.');
+        return new InvalidOperationError('aiUnreachable', { provider: 'Anthropic' });
     }
     if (reason instanceof Anthropic.APIError) {
-        return new InvalidOperationError(`Anthropic returned an error (status ${reason.status ?? 'unknown'}).`);
+        return new InvalidOperationError('aiProviderError', {
+            provider: 'Anthropic',
+            status: reason.status ?? 'unknown',
+        });
     }
-    return new InvalidOperationError('Failed to generate a summary.');
+    return new InvalidOperationError('summaryGenerationFailed');
 }

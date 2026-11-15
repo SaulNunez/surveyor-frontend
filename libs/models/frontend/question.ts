@@ -26,3 +26,6 @@ export interface OpenEndedQuestionDao {
 
 export type QuestionInput = MultipleChoiceQuestionDao | BinaryChoiceQuestionDao | LikertScaleQuestionDao | OpenEndedQuestionDao;
 export type QuestionDao = (MultipleChoiceQuestionDao | BinaryChoiceQuestionDao | LikertScaleQuestionDao | OpenEndedQuestionDao) & {id: string};
+
+/** The discriminant every switch over a question variant is keyed on. */
+export type QuestionType = QuestionInput['questionType'];

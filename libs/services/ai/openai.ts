@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { InvalidOperationError } from "../../models/Errors/invalidOperationError";
+import type { ErrorCode } from "../../models/Errors/errorCodes";
 import { AiProviderConfig } from "./config";
 import { SUMMARY_SYSTEM_PROMPT, buildSummaryUserMessage } from "./prompt";
 import { SummaryProvider } from "./types";
@@ -12,9 +13,23 @@ const MAX_TOKENS = 2048;
  * differences are the base URL, whether the key means anything, and what an
  * unreachable endpoint implies for the operator.
  */
+/**
+ * `name` identifies the provider to the client; `displayName` is what the
+ * reader sees in an error. `unreachable` is a code rather than a shared message
+ * because a local Ollama that is simply not running needs different advice from
+ * a hosted endpoint that timed out.
+ */
+type ProviderLabels = {
+    name: string;
+    displayName: string;
+    keyEnvVar: string;
+    modelEnvVar: string;
+    unreachable: ErrorCode;
+};
+
 export function createOpenAiCompatibleProvider(
     config: AiProviderConfig,
-    labels: { name: string; keyEnvVar: string; modelEnvVar: string; unreachable: string }
+    labels: ProviderLabels
 ): SummaryProvider {
     const client = new OpenAI({
         apiKey: config.apiKey,
@@ -44,7 +59,7 @@ export function createOpenAiCompatibleProvider(
 
             const text = completion.choices[0]?.message?.content?.trim() ?? '';
             if (text.length === 0) {
-                throw new InvalidOperationError('The model returned an empty summary.');
+                throw new InvalidOperationError('aiEmptySummary');
             }
 
             return text;
@@ -55,9 +70,10 @@ export function createOpenAiCompatibleProvider(
 export function createOpenAiProvider(config: AiProviderConfig): SummaryProvider {
     return createOpenAiCompatibleProvider(config, {
         name: 'openai',
+        displayName: 'OpenAI',
         keyEnvVar: 'OPENAI_API_KEY',
         modelEnvVar: 'OPENAI_MODEL',
-        unreachable: 'Could not reach OpenAI. Try again shortly.',
+        unreachable: 'aiUnreachable',
     });
 }
 
@@ -68,28 +84,30 @@ export function createOpenAiProvider(config: AiProviderConfig): SummaryProvider 
  */
 function toInvalidOperationError(
     reason: unknown,
-    labels: { name: string; keyEnvVar: string; modelEnvVar: string; unreachable: string }
+    labels: ProviderLabels
 ): InvalidOperationError {
     console.error(`${labels.name} summary request failed:`, reason);
 
     if (reason instanceof OpenAI.AuthenticationError || reason instanceof OpenAI.PermissionDeniedError) {
-        return new InvalidOperationError(
-            `The configured ${labels.name} credentials were rejected. Check ${labels.keyEnvVar} on the server.`
-        );
+        return new InvalidOperationError('aiCredentialsRejected', {
+            provider: labels.displayName,
+            envVar: labels.keyEnvVar,
+        });
     }
     if (reason instanceof OpenAI.RateLimitError) {
-        return new InvalidOperationError(`${labels.name} rate limit reached. Try again shortly.`);
+        return new InvalidOperationError('aiRateLimited', { provider: labels.displayName });
     }
     if (reason instanceof OpenAI.NotFoundError) {
-        return new InvalidOperationError(
-            `The configured model was not found. Check ${labels.modelEnvVar} on the server.`
-        );
+        return new InvalidOperationError('aiModelNotFound', { envVar: labels.modelEnvVar });
     }
     if (reason instanceof OpenAI.APIConnectionError) {
-        return new InvalidOperationError(labels.unreachable);
+        return new InvalidOperationError(labels.unreachable, { provider: labels.displayName });
     }
     if (reason instanceof OpenAI.APIError) {
-        return new InvalidOperationError(`${labels.name} returned an error (status ${reason.status ?? 'unknown'}).`);
+        return new InvalidOperationError('aiProviderError', {
+            provider: labels.displayName,
+            status: reason.status ?? 'unknown',
+        });
     }
-    return new InvalidOperationError('Failed to generate a summary.');
+    return new InvalidOperationError('summaryGenerationFailed');
 }

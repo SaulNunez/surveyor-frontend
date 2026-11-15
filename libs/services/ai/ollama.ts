@@ -12,9 +12,10 @@ export function createOllamaProvider(config: AiProviderConfig): SummaryProvider 
         { ...config, baseUrl: config.baseUrl ?? DEFAULT_OLLAMA_BASE_URL },
         {
             name: 'ollama',
+            displayName: 'Ollama',
             keyEnvVar: 'OLLAMA_BASE_URL',
             modelEnvVar: 'OLLAMA_MODEL',
-            unreachable: 'Could not reach the Ollama server. Check that it is running and that OLLAMA_BASE_URL is correct.',
+            unreachable: 'ollamaUnreachable',
         }
     );
 }

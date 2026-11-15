@@ -1,0 +1,820 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-11 22:42-0700\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: app/surveys/create/page.tsx:185
+msgid "(Markdown supported)"
+msgstr "(Markdown supported)"
+
+#. placeholder {0}: questions.length
+#: app/surveys/create/page.tsx:264
+msgid "{0, plural, one {# question} other {# questions}}"
+msgstr "{0, plural, one {# question} other {# questions}}"
+
+#. placeholder {0}: aiSummary.responseCount
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:113
+msgid "{0, plural, one {# response} other {# responses}}"
+msgstr "{0, plural, one {# response} other {# responses}}"
+
+#: app/surveys/page.tsx:90
+msgid "{greeting}, {who}"
+msgstr "{greeting}, {who}"
+
+#: libs/i18n/apiErrors.ts:44
+msgid "{provider} rate limit reached. Try again shortly."
+msgstr "{provider} rate limit reached. Try again shortly."
+
+#: libs/i18n/apiErrors.ts:47
+msgid "{provider} returned an error (status {status})."
+msgstr "{provider} returned an error (status {status})."
+
+#: app/surveys/[surveyId]/page.tsx:276
+msgid "{unansweredCount, plural, one {Please answer all questions before submitting. You have # unanswered question.} other {Please answer all questions before submitting. You have # unanswered questions.}}"
+msgstr "{unansweredCount, plural, one {Please answer all questions before submitting. You have # unanswered question.} other {Please answer all questions before submitting. You have # unanswered questions.}}"
+
+#: app/surveys/[surveyId]/answers/_components/OpenToAnyoneToggle.tsx:51
+msgid "Account required"
+msgstr "Account required"
+
+#: app/surveys/create/page.tsx:474
+msgid "Add a new question to your survey"
+msgstr "Add a new question to your survey"
+
+#: app/surveys/create/page.tsx:394
+msgid "Add Option"
+msgstr "Add Option"
+
+#: app/surveys/[surveyId]/answers/page.tsx:119
+msgid "AI summaries of open-ended answers are unavailable: no LLM provider is configured on this server."
+msgstr "AI summaries of open-ended answers are unavailable: no LLM provider is configured on this server."
+
+#: libs/i18n/apiErrors.ts:40
+msgid "AI_SUMMARY_PROVIDER is set to \"{provider}\" but {envVar} is not configured."
+msgstr "AI_SUMMARY_PROVIDER is set to \"{provider}\" but {envVar} is not configured."
+
+#: app/surveys/[surveyId]/page.tsx:307
+msgid "An error occurred during submission."
+msgstr "An error occurred during submission."
+
+#: app/surveys/[surveyId]/page.tsx:242
+msgid "An error occurred while resetting your attempt."
+msgstr "An error occurred while resetting your attempt."
+
+#: components/common/ServerError.tsx:11
+msgid "An unexpected error occurred while trying to fetch data from the server."
+msgstr "An unexpected error occurred while trying to fetch data from the server."
+
+#: app/surveys/[surveyId]/answers/_components/OpenToAnyoneToggle.tsx:55
+msgid "Anyone with the link can answer without an account. The same person can answer again from a different browser."
+msgstr "Anyone with the link can answer without an account. The same person can answer again from a different browser."
+
+#: app/surveys/create/page.tsx:245
+msgid "Anyone with the link can answer without creating an account. Because guests are identified by their browser, the same person can answer more than once from a different browser or device."
+msgstr "Anyone with the link can answer without creating an account. Because guests are identified by their browser, the same person can answer more than once from a different browser or device."
+
+#: app/surveys/[surveyId]/page.tsx:213
+msgid "Are you sure you want to discard your current progress and start over?"
+msgstr "Are you sure you want to discard your current progress and start over?"
+
+#: libs/i18n/apiErrors.ts:22
+msgid "Attempt not found"
+msgstr "Attempt not found"
+
+#: app/surveys/[surveyId]/answers/page.tsx:67
+#: app/surveys/[surveyId]/page.tsx:329
+msgid "Back to Dashboard"
+msgstr "Back to Dashboard"
+
+#: app/surveys/[surveyId]/answers/page.tsx:82
+#: app/surveys/[surveyId]/page.tsx:344
+msgid "Back to Surveys"
+msgstr "Back to Surveys"
+
+#: app/api/register/route.ts:14
+msgid "Bad request"
+msgstr "Bad request"
+
+#: app/api/surveys/[surveyId]/route.ts:50
+msgid "Bad request. Please check both title and description are defined."
+msgstr "Bad request. Please check both title and description are defined."
+
+#: app/api/surveys/route.ts:17
+msgid "Bad request. Please check both title, questions and description are defined."
+msgstr "Bad request. Please check both title, questions and description are defined."
+
+#: libs/i18n/questionTypes.ts:20
+msgid "Binary choice"
+msgstr "Binary choice"
+
+#: app/surveys/create/page.tsx:499
+msgid "Binary Choice"
+msgstr "Binary Choice"
+
+#: libs/i18n/apiErrors.ts:30
+msgid "Cannot delete a completed attempt"
+msgstr "Cannot delete a completed attempt"
+
+#: app/settings/_components/ChangeDisplayNameForm.tsx:73
+#: app/settings/page.tsx:74
+msgid "Change Display Name"
+msgstr "Change Display Name"
+
+#: app/settings/_components/ChangeDisplayNameForm.tsx:73
+msgid "Changing..."
+msgstr "Changing..."
+
+#: app/surveys/create/page.tsx:274
+msgid "Choose a question type below to start building your survey."
+msgstr "Choose a question type below to start building your survey."
+
+#: app/register/page.tsx:78
+msgid "Claim your answers"
+msgstr "Claim your answers"
+
+#: app/register/page.tsx:127
+msgid "Confirm Password"
+msgstr "Confirm Password"
+
+#: libs/i18n/apiErrors.ts:45
+msgid "Could not reach {provider}. Try again shortly."
+msgstr "Could not reach {provider}. Try again shortly."
+
+#: libs/i18n/apiErrors.ts:46
+msgid "Could not reach the Ollama server. Check that it is running and that OLLAMA_BASE_URL is correct."
+msgstr "Could not reach the Ollama server. Check that it is running and that OLLAMA_BASE_URL is correct."
+
+#: app/surveys/[surveyId]/page.tsx:594
+msgid "Could not save your progress. It will be retried."
+msgstr "Could not save your progress. It will be retried."
+
+#: libs/i18n/apiErrors.ts:29
+msgid "Could not start an attempt for this survey"
+msgstr "Could not start an attempt for this survey"
+
+#: app/surveys/[surveyId]/page.tsx:372
+#: app/surveys/[surveyId]/page.tsx:397
+#: app/surveys/page.tsx:60
+#: components/Header.tsx:79
+msgid "Create account"
+msgstr "Create account"
+
+#: app/register/page.tsx:154
+msgid "Create Account"
+msgstr "Create Account"
+
+#: app/surveys/create/page.tsx:163
+#: app/surveys/create/page.tsx:536
+#: app/surveys/page.tsx:101
+msgid "Create Survey"
+msgstr "Create Survey"
+
+#: app/surveys/page.tsx:170
+msgid "Create Your First Survey"
+msgstr "Create Your First Survey"
+
+#: app/surveys/create/page.tsx:531
+msgid "Creating Survey..."
+msgstr "Creating Survey..."
+
+#: app/register/page.tsx:154
+msgid "Creating..."
+msgstr "Creating..."
+
+#: app/settings/page.tsx:56
+msgid "Display Name"
+msgstr "Display Name"
+
+#: app/settings/_components/ChangeDisplayNameForm.tsx:21
+msgid "Display name cannot be empty"
+msgstr "Display name cannot be empty"
+
+#: app/settings/_components/ChangeDisplayNameForm.tsx:63
+msgid "Display name changed successfully."
+msgstr "Display name changed successfully."
+
+#: app/api/user/route.ts:26
+msgid "Display name is required"
+msgstr "Display name is required"
+
+#: app/surveys/create/page.tsx:197
+msgid "Edit"
+msgstr "Edit"
+
+#: app/login/page.tsx:49
+#: app/register/page.tsx:99
+#: app/settings/page.tsx:37
+msgid "Email"
+msgstr "Email"
+
+#: app/surveys/create/page.tsx:176
+msgid "Enter a descriptive title for your survey"
+msgstr "Enter a descriptive title for your survey"
+
+#: app/surveys/page.tsx:109
+msgid "Error loading surveys: {errorMsg}"
+msgstr "Error loading surveys: {errorMsg}"
+
+#: app/api/survey/[surveyId]/attempt/route.ts:183
+msgid "Expected an 'answers' object."
+msgstr "Expected an 'answers' object."
+
+#: app/api/survey/[surveyId]/attempt/route.ts:177
+msgid "Expected an object of answers."
+msgstr "Expected an object of answers."
+
+#: app/surveys/[surveyId]/answers/page.tsx:102
+msgid "Export .ods"
+msgstr "Export .ods"
+
+#: app/settings/_components/ChangeDisplayNameForm.tsx:28
+#: app/settings/_components/ChangeDisplayNameForm.tsx:34
+msgid "Failed to change display name"
+msgstr "Failed to change display name"
+
+#: app/surveys/[surveyId]/page.tsx:60
+msgid "Failed to fetch attempt"
+msgstr "Failed to fetch attempt"
+
+#. placeholder {0}: res.statusText
+#: app/surveys/[surveyId]/answers/page.tsx:40
+msgid "Failed to fetch survey summary: {0}"
+msgstr "Failed to fetch survey summary: {0}"
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:13
+msgid "Failed to generate a summary"
+msgstr "Failed to generate a summary"
+
+#: libs/i18n/apiErrors.ts:50
+msgid "Failed to generate a summary."
+msgstr "Failed to generate a summary."
+
+#: app/surveys/page.tsx:73
+msgid "Failed to load surveys"
+msgstr "Failed to load surveys"
+
+#: app/surveys/[surveyId]/page.tsx:238
+msgid "Failed to reset attempt. Please try again."
+msgstr "Failed to reset attempt. Please try again."
+
+#: app/surveys/[surveyId]/page.tsx:303
+msgid "Failed to submit survey: {text}"
+msgstr "Failed to submit survey: {text}"
+
+#: app/surveys/create/page.tsx:434
+msgid "False/Negative Label (e.g. No)"
+msgstr "False/Negative Label (e.g. No)"
+
+#: app/surveys/page.tsx:34
+msgid "Go to Login"
+msgstr "Go to Login"
+
+#: app/surveys/page.tsx:13
+msgid "Good afternoon"
+msgstr "Good afternoon"
+
+#: app/surveys/page.tsx:14
+msgid "Good evening"
+msgstr "Good evening"
+
+#: app/surveys/page.tsx:12
+msgid "Good morning"
+msgstr "Good morning"
+
+#: components/Header.tsx:73
+msgid "Guest"
+msgstr "Guest"
+
+#: app/surveys/page.tsx:51
+msgid "Guest accounts can answer surveys, but not create them. Create an account to keep the answers you have already given and start your own surveys."
+msgstr "Guest accounts can answer surveys, but not create them. Create an account to keep the answers you have already given and start your own surveys."
+
+#: app/surveys/[surveyId]/page.tsx:386
+msgid "Guest accounts cannot answer it, so nothing you type here is being saved. Create an account to answer."
+msgstr "Guest accounts cannot answer it, so nothing you type here is being saved. Create an account to answer."
+
+#: app/api/surveys/route.ts:35
+msgid "Guest accounts cannot create surveys. Register to keep your answers and create your own."
+msgstr "Guest accounts cannot create surveys. Register to keep your answers and create your own."
+
+#: app/api/surveys/[surveyId]/route.ts:41
+msgid "Guest accounts cannot edit surveys."
+msgstr "Guest accounts cannot edit surveys."
+
+#: app/api/surveys/[surveyId]/export/route.ts:30
+msgid "Guest accounts cannot export survey results. Register to create your own surveys."
+msgstr "Guest accounts cannot export survey results. Register to create your own surveys."
+
+#: app/api/surveys/[surveyId]/questions/[questionId]/summary/route.ts:27
+#: app/api/surveys/[surveyId]/summary/route.ts:19
+msgid "Guest accounts cannot view survey results. Register to create your own surveys."
+msgstr "Guest accounts cannot view survey results. Register to create your own surveys."
+
+#: app/api/user/route.ts:18
+msgid "Guest accounts have no settings. Register first."
+msgstr "Guest accounts have no settings. Register first."
+
+#: app/surveys/create/page.tsx:416
+msgid "Highest Value Label (e.g. Strongly Agree)"
+msgstr "Highest Value Label (e.g. Strongly Agree)"
+
+#: components/Header.tsx:43
+#: components/Header.tsx:60
+msgid "Home"
+msgstr "Home"
+
+#: app/login/page.tsx:30
+msgid "Incorrect email or password."
+msgstr "Incorrect email or password."
+
+#: components/LanguageSwitcher.tsx:26
+#: components/LanguageSwitcher.tsx:28
+msgid "Language"
+msgstr "Language"
+
+#: libs/i18n/questionTypes.ts:21
+msgid "Likert scale"
+msgstr "Likert scale"
+
+#: app/surveys/create/page.tsx:507
+msgid "Likert Scale"
+msgstr "Likert Scale"
+
+#: components/common/Loading.tsx:8
+msgid "Loading..."
+msgstr "Loading..."
+
+#: app/login/page.tsx:44
+#: components/Header.tsx:113
+msgid "Login"
+msgstr "Login"
+
+#: components/Header.tsx:102
+msgid "Logout"
+msgstr "Logout"
+
+#: app/surveys/create/page.tsx:404
+msgid "Lowest Value Label (e.g. Strongly Disagree)"
+msgstr "Lowest Value Label (e.g. Strongly Disagree)"
+
+#: app/surveys/[surveyId]/page.tsx:585
+msgid "Make sure you have completed all questions before sending."
+msgstr "Make sure you have completed all questions before sending."
+
+#: app/surveys/page.tsx:93
+msgid "Manage your active surveys and analyze responses."
+msgstr "Manage your active surveys and analyze responses."
+
+#: app/surveys/create/page.tsx:324
+msgid "Move Down"
+msgstr "Move Down"
+
+#: app/surveys/create/page.tsx:315
+msgid "Move Up"
+msgstr "Move Up"
+
+#: libs/i18n/questionTypes.ts:19
+msgid "Multiple choice"
+msgstr "Multiple choice"
+
+#: app/surveys/create/page.tsx:491
+msgid "Multiple Choice"
+msgstr "Multiple Choice"
+
+#: app/surveys/create/page.tsx:440
+msgid "Negative label"
+msgstr "Negative label"
+
+#: app/surveys/create/page.tsx:410
+msgid "Negative label (1)"
+msgstr "Negative label (1)"
+
+#: app/settings/_components/ChangeDisplayNameForm.tsx:46
+msgid "New Display Name"
+msgstr "New Display Name"
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:84
+msgid "New responses have arrived since this summary."
+msgstr "New responses have arrived since this summary."
+
+#: app/surveys/[surveyId]/answers/page.tsx:197
+#: app/surveys/[surveyId]/page.tsx:512
+msgid "No"
+msgstr "No"
+
+#: app/api/survey/[surveyId]/attempt/route.ts:140
+msgid "No active attempt found"
+msgstr "No active attempt found"
+
+#: app/api/survey/[surveyId]/attempt/route.ts:238
+msgid "No active attempt found to submit."
+msgstr "No active attempt found to submit."
+
+#: libs/i18n/apiErrors.ts:35
+msgid "No AI provider is configured on this server. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or OLLAMA_BASE_URL."
+msgstr "No AI provider is configured on this server. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or OLLAMA_BASE_URL."
+
+#: app/surveys/page.tsx:127
+msgid "No description provided."
+msgstr "No description provided."
+
+#: app/surveys/create/page.tsx:271
+msgid "No questions added yet"
+msgstr "No questions added yet"
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:133
+msgid "No responses received yet."
+msgstr "No responses received yet."
+
+#: app/surveys/page.tsx:159
+msgid "No surveys found"
+msgstr "No surveys found"
+
+#: app/surveys/create/page.tsx:225
+msgid "Nothing to preview yet."
+msgstr "Nothing to preview yet."
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:79
+msgid "Nothing to summarize yet."
+msgstr "Nothing to summarize yet."
+
+#: libs/i18n/apiErrors.ts:32
+msgid "Only open-ended questions can be summarized"
+msgstr "Only open-ended questions can be summarized"
+
+#: app/surveys/[surveyId]/answers/_components/OpenToAnyoneToggle.tsx:60
+msgid "Only people signed in with an account can answer."
+msgstr "Only people signed in with an account can answer."
+
+#: libs/i18n/questionTypes.ts:18
+msgid "Open ended"
+msgstr "Open ended"
+
+#: app/surveys/create/page.tsx:483
+msgid "Open Ended"
+msgstr "Open Ended"
+
+#: app/surveys/[surveyId]/answers/_components/OpenToAnyoneToggle.tsx:51
+#: app/surveys/[surveyId]/answers/_components/OpenToAnyoneToggle.tsx:72
+#: app/surveys/create/page.tsx:242
+msgid "Open to anyone"
+msgstr "Open to anyone"
+
+#. placeholder {0}: idx + 1
+#: app/surveys/create/page.tsx:367
+msgid "Option {0}"
+msgstr "Option {0}"
+
+#: app/surveys/create/page.tsx:92
+msgid "Option 1"
+msgstr "Option 1"
+
+#: app/surveys/create/page.tsx:92
+msgid "Option 2"
+msgstr "Option 2"
+
+#: app/surveys/create/page.tsx:357
+msgid "Options"
+msgstr "Options"
+
+#: app/login/page.tsx:65
+#: app/register/page.tsx:113
+msgid "Password"
+msgstr "Password"
+
+#: app/register/page.tsx:69
+msgid "Passwords do not match."
+msgstr "Passwords do not match."
+
+#: app/api/survey/[surveyId]/attempt/route.ts:249
+msgid "Please answer all questions before submitting."
+msgstr "Please answer all questions before submitting."
+
+#: app/surveys/create/page.tsx:519
+msgid "Please make sure you have added a title and configured your questions."
+msgstr "Please make sure you have added a title and configured your questions."
+
+#: components/common/ServerError.tsx:16
+msgid "Please try again later or contact support if the issue persists."
+msgstr "Please try again later or contact support if the issue persists."
+
+#: app/surveys/create/page.tsx:452
+msgid "Positive label"
+msgstr "Positive label"
+
+#: app/surveys/create/page.tsx:422
+msgid "Positive label (5)"
+msgstr "Positive label (5)"
+
+#: app/surveys/create/page.tsx:208
+msgid "Preview"
+msgstr "Preview"
+
+#: app/settings/page.tsx:29
+msgid "Profile"
+msgstr "Profile"
+
+#: app/surveys/[surveyId]/page.tsx:593
+msgid "Progress saved."
+msgstr "Progress saved."
+
+#: app/surveys/create/page.tsx:216
+msgid "Provide context, instructions, or goals for this survey..."
+msgstr "Provide context, instructions, or goals for this survey..."
+
+#: libs/i18n/apiErrors.ts:21
+msgid "Question not found"
+msgstr "Question not found"
+
+#: app/surveys/create/page.tsx:342
+msgid "Question Title"
+msgstr "Question Title"
+
+#: app/surveys/create/page.tsx:261
+msgid "Questions"
+msgstr "Questions"
+
+#: app/api/surveys/route.ts:23
+msgid "Questions should be an array!"
+msgstr "Questions should be an array!"
+
+#. placeholder {0}: row.options
+#: app/surveys/[surveyId]/answers/page.tsx:229
+msgid "Rating {0}"
+msgstr "Rating {0}"
+
+#: app/surveys/create/page.tsx:516
+msgid "Ready to publish?"
+msgstr "Ready to publish?"
+
+#: app/surveys/[surveyId]/page.tsx:582
+msgid "Ready to send?"
+msgstr "Ready to send?"
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:105
+msgid "Recurring topics"
+msgstr "Recurring topics"
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:72
+msgid "Regenerate summary"
+msgstr "Regenerate summary"
+
+#: app/login/page.tsx:94
+#: app/register/page.tsx:78
+#: components/Header.tsx:119
+msgid "Register"
+msgstr "Register"
+
+#: app/register/page.tsx:34
+msgid "Registration failed"
+msgstr "Registration failed"
+
+#: app/surveys/create/page.tsx:382
+msgid "Remove option"
+msgstr "Remove option"
+
+#: app/surveys/create/page.tsx:332
+msgid "Remove Question"
+msgstr "Remove Question"
+
+#: app/surveys/[surveyId]/answers/_components/OpenToAnyoneToggle.tsx:72
+msgid "Require an account"
+msgstr "Require an account"
+
+#: libs/i18n/apiErrors.ts:23
+msgid "Response not found"
+msgstr "Response not found"
+
+#: app/surveys/[surveyId]/page.tsx:412
+msgid "Resuming Existing Attempt"
+msgstr "Resuming Existing Attempt"
+
+#: app/surveys/[surveyId]/page.tsx:592
+msgid "Saving your progress..."
+msgstr "Saving your progress..."
+
+#: components/common/ServerError.tsx:8
+msgid "Server Error"
+msgstr "Server Error"
+
+#: app/settings/page.tsx:25
+#: components/Header.tsx:96
+msgid "Settings"
+msgstr "Settings"
+
+#: app/login/page.tsx:87
+msgid "Sign In"
+msgstr "Sign In"
+
+#: app/surveys/[surveyId]/page.tsx:300
+msgid "Sign in to submit your answers."
+msgstr "Sign in to submit your answers."
+
+#: app/login/page.tsx:87
+msgid "Signing in..."
+msgstr "Signing in..."
+
+#: libs/i18n/apiErrors.ts:59
+msgid "Something went wrong. Please try again."
+msgstr "Something went wrong. Please try again."
+
+#: app/surveys/[surveyId]/page.tsx:426
+msgid "Start Anew"
+msgstr "Start Anew"
+
+#: app/surveys/page.tsx:162
+msgid "Start by creating your first survey to collect feedback, structure questions, and analyze responses."
+msgstr "Start by creating your first survey to collect feedback, structure questions, and analyze responses."
+
+#: app/surveys/[surveyId]/page.tsx:426
+msgid "Starting Anew..."
+msgstr "Starting Anew..."
+
+#: app/surveys/page.tsx:140
+msgid "Stats"
+msgstr "Stats"
+
+#: app/surveys/[surveyId]/page.tsx:545
+msgid "Strongly Agree"
+msgstr "Strongly Agree"
+
+#: app/surveys/[surveyId]/page.tsx:544
+msgid "Strongly Disagree"
+msgstr "Strongly Disagree"
+
+#: app/surveys/[surveyId]/page.tsx:614
+msgid "Submit Responses"
+msgstr "Submit Responses"
+
+#: app/surveys/[surveyId]/page.tsx:614
+msgid "Submitting..."
+msgstr "Submitting..."
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:74
+msgid "Summarize responses"
+msgstr "Summarize responses"
+
+#: app/surveys/[surveyId]/answers/_components/OpenEndedSummaryCard.tsx:70
+msgid "Summarizing…"
+msgstr "Summarizing…"
+
+#: app/surveys/create/page.tsx:185
+msgid "Survey Description"
+msgstr "Survey Description"
+
+#: libs/i18n/apiErrors.ts:20
+msgid "Survey not found"
+msgstr "Survey not found"
+
+#: app/surveys/[surveyId]/answers/page.tsx:94
+msgid "Survey Results"
+msgstr "Survey Results"
+
+#: app/surveys/[surveyId]/page.tsx:297
+msgid "Survey submitted successfully!"
+msgstr "Survey submitted successfully!"
+
+#: app/surveys/create/page.tsx:169
+msgid "Survey Title"
+msgstr "Survey Title"
+
+#: libs/i18n/apiErrors.ts:26
+msgid "That email is already registered"
+msgstr "That email is already registered"
+
+#: libs/i18n/apiErrors.ts:41
+msgid "The configured {provider} credentials were rejected. Check {envVar} on the server."
+msgstr "The configured {provider} credentials were rejected. Check {envVar} on the server."
+
+#: libs/i18n/apiErrors.ts:42
+msgid "The configured model was not found. Check {envVar} on the server."
+msgstr "The configured model was not found. Check {envVar} on the server."
+
+#: libs/i18n/apiErrors.ts:48
+msgid "The model declined to summarize these responses."
+msgstr "The model declined to summarize these responses."
+
+#: libs/i18n/apiErrors.ts:49
+msgid "The model returned an empty summary."
+msgstr "The model returned an empty summary."
+
+#: libs/i18n/apiErrors.ts:33
+msgid "There are no responses to summarize yet"
+msgstr "There are no responses to summarize yet"
+
+#: libs/i18n/apiErrors.ts:27
+msgid "This account already has credentials"
+msgstr "This account already has credentials"
+
+#: app/api/survey/[surveyId]/attempt/route.ts:210
+msgid "This attempt is no longer current. Reload to continue."
+msgstr "This attempt is no longer current. Reload to continue."
+
+#: app/surveys/[surveyId]/page.tsx:177
+msgid "This attempt was restarted somewhere else. Reloading your progress."
+msgstr "This attempt was restarted somewhere else. Reloading your progress."
+
+#: app/surveys/[surveyId]/page.tsx:383
+msgid "This survey needs a full account"
+msgstr "This survey needs a full account"
+
+#: libs/i18n/apiErrors.ts:25
+msgid "This survey requires an account to answer"
+msgstr "This survey requires an account to answer"
+
+#: app/api/survey/[surveyId]/attempt/_guard.ts:30
+msgid "This survey requires an account. Sign in to answer."
+msgstr "This survey requires an account. Sign in to answer."
+
+#: app/surveys/create/page.tsx:446
+msgid "True/Positive Label (e.g. Yes)"
+msgstr "True/Positive Label (e.g. Yes)"
+
+#: app/surveys/[surveyId]/page.tsx:472
+msgid "Type your response here..."
+msgstr "Type your response here..."
+
+#: app/api/survey/[surveyId]/attempt/restart/route.ts:15
+#: app/api/survey/[surveyId]/attempt/route.ts:129
+#: app/api/survey/[surveyId]/attempt/route.ts:165
+#: app/api/survey/[surveyId]/attempt/route.ts:227
+#: app/api/surveys/[surveyId]/export/route.ts:22
+#: app/api/surveys/[surveyId]/questions/[questionId]/summary/route.ts:19
+#: app/api/surveys/[surveyId]/route.ts:37
+#: app/api/surveys/[surveyId]/summary/route.ts:11
+#: app/api/surveys/route.ts:30
+#: app/api/user/route.ts:13
+msgid "Unauthorized"
+msgstr "Unauthorized"
+
+#: libs/i18n/apiErrors.ts:39
+msgid "Unknown AI_SUMMARY_PROVIDER \"{provider}\". Expected one of: anthropic, openai, ollama."
+msgstr "Unknown AI_SUMMARY_PROVIDER \"{provider}\". Expected one of: anthropic, openai, ollama."
+
+#: app/surveys/[surveyId]/page.tsx:463
+msgid "Untitled Question"
+msgstr "Untitled Question"
+
+#: app/api/user/route.ts:34
+msgid "User not found"
+msgstr "User not found"
+
+#: app/surveys/page.tsx:28
+msgid "User not logged in."
+msgstr "User not logged in."
+
+#: app/surveys/page.tsx:146
+msgid "View"
+msgstr "View"
+
+#: app/surveys/[surveyId]/page.tsx:415
+msgid "We've loaded your previous responses. You can modify them or start fresh."
+msgstr "We've loaded your previous responses. You can modify them or start fresh."
+
+#: app/surveys/create/page.tsx:348
+msgid "What would you like to ask?"
+msgstr "What would you like to ask?"
+
+#: app/layout.tsx:26
+msgid "Write surveys, share them, and read the answers."
+msgstr "Write surveys, share them, and read the answers."
+
+#: app/surveys/[surveyId]/answers/page.tsx:196
+#: app/surveys/[surveyId]/page.tsx:513
+msgid "Yes"
+msgstr "Yes"
+
+#: app/surveys/[surveyId]/page.tsx:358
+msgid "You're answering as a guest"
+msgstr "You're answering as a guest"
+
+#: app/surveys/page.tsx:48
+msgid "You're signed in as a guest"
+msgstr "You're signed in as a guest"
+
+#: app/register/page.tsx:82
+msgid "You've been answering as a guest. Creating an account keeps the answers you have already given."
+msgstr "You've been answering as a guest. Creating an account keeps the answers you have already given."
+
+#: app/login/page.tsx:60
+#: app/register/page.tsx:107
+msgid "you@example.com"
+msgstr "you@example.com"
+
+#: app/surveys/[surveyId]/page.tsx:596
+msgid "Your answers are not being saved. <0>Sign in to save them</0>."
+msgstr "Your answers are not being saved. <0>Sign in to save them</0>."
+
+#: app/surveys/[surveyId]/page.tsx:361
+msgid "Your answers are saved to a guest account <0>on this device</0>. Create an account to keep them."
+msgstr "Your answers are saved to a guest account <0>on this device</0>. Create an account to keep them."

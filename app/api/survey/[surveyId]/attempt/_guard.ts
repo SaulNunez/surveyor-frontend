@@ -1,5 +1,7 @@
 import { Session } from "next-auth";
 import { isSurveyOpenToAnyone } from "@/libs/services/surveyService";
+import { msg } from "@lingui/core/macro";
+import { translate } from "@/libs/i18n/apiErrors";
 
 /**
  * Refuses a guest account on a survey that does not accept anonymous answers,
@@ -24,5 +26,8 @@ export async function rejectGuestOnClosedSurvey(
         return null;
     }
 
-    return new Response("This survey requires an account. Sign in to answer.", { status: 403 });
+    return new Response(
+        await translate(msg`This survey requires an account. Sign in to answer.`),
+        { status: 403 }
+    );
 }

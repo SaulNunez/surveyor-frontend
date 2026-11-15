@@ -55,7 +55,7 @@ export async function createUser({ email, password }: UserInputDao, executor: Ex
         return toPublicUser(created[0]);
     } catch (error) {
         if (isEmailCollision(error)) {
-            throw new InvalidOperationError('That email is already registered');
+            throw new InvalidOperationError('emailAlreadyRegistered');
         }
         throw error;
     }
@@ -105,13 +105,13 @@ export async function linkAnonymousAccount(
         if (isEmailCollision(error)) {
             // The update never committed, so the guest row — and the session
             // pointing at it — is left exactly as it was.
-            throw new InvalidOperationError('That email is already registered');
+            throw new InvalidOperationError('emailAlreadyRegistered');
         }
         throw error;
     }
 
     if (updated.length === 0) {
-        throw new InvalidOperationError('This account already has credentials');
+        throw new InvalidOperationError('accountAlreadyHasCredentials');
     }
 
     return toPublicUser(updated[0]);

@@ -2,6 +2,8 @@ import { createUser, linkAnonymousAccount } from "@/libs/services/auth/userServi
 import { InvalidOperationError } from "@/libs/models/Errors/invalidOperationError";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { msg } from "@lingui/core/macro";
+import { errorMessage, translate } from "@/libs/i18n/apiErrors";
 
 export async function POST(request: Request) {
     const session = await auth();
@@ -9,7 +11,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         if(!body['email'] || !body['password']){
-            return NextResponse.json({ message: "Bad request" }, { status: 400 });
+            return NextResponse.json({ message: await translate(msg`Bad request`) }, { status: 400 });
         }
         const { email, password } = body;
 
@@ -30,11 +32,9 @@ export async function POST(request: Request) {
         // conflicts with state that exists, not malformed requests — the
         // client has to tell them apart from the 400 above.
         if (reason instanceof InvalidOperationError) {
-            return NextResponse.json({ message: reason.message }, { status: 409 });
+            return NextResponse.json({ message: await errorMessage(reason) }, { status: 409 });
         }
 
-        const message = reason instanceof Error ? reason.message : 'Unexpected exception'
-
-        return NextResponse.json({ message }, { status: 500 });
+        return NextResponse.json({ message: await errorMessage(reason) }, { status: 500 });
     }
 }

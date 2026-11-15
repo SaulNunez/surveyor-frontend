@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { getSurveyExportData } from "@/libs/services/surveyExportService";
 import { buildSurveyOds, ODS_CONTENT_TYPE } from "@/libs/export/surveyOds";
 import { NotFoundError } from "@/libs/models/Errors/notFoundError";
+import { msg } from "@lingui/core/macro";
+import { errorMessage, translate } from "@/libs/i18n/apiErrors";
 
 function contentDisposition(title: string) {
     const asciiName = title
@@ -17,14 +19,17 @@ function contentDisposition(title: string) {
 export async function GET(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
     const session = await auth();
     if (!session?.user) {
-        return new Response("Unauthorized", { status: 401 });
+        return new Response(await translate(msg`Unauthorized`), { status: 401 });
     }
 
     // A guest owns no surveys, so the ownership check below would refuse this
     // anyway — but "not found" is a poor answer to someone who simply needs an
     // account.
     if (session.user.isAnonymous) {
-        return new Response("Guest accounts cannot export survey results. Register to create your own surveys.", { status: 403 });
+        return new Response(
+            await translate(msg`Guest accounts cannot export survey results. Register to create your own surveys.`),
+            { status: 403 }
+        );
     }
 
     try {
@@ -43,9 +48,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ surv
     }
     catch (reason) {
         if (reason instanceof NotFoundError) {
-            return new Response(reason.message, { status: 404 });
+            return new Response(await errorMessage(reason), { status: 404 });
         }
-        const message = reason instanceof Error ? reason.message : 'Unexpected exception';
-        return new Response(message, { status: 500 });
+        return new Response(await errorMessage(reason), { status: 500 });
     }
 }

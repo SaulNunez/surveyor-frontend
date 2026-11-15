@@ -72,7 +72,7 @@ export async function createNewAttempt(surveyPublicId: string, userId: string, e
     // Lost the race: the concurrent save's attempt is the in-progress one.
     const existingAttempt = await getExistingAttempt(surveyPublicId, userId, executor);
     if (!existingAttempt) {
-        throw new InvalidOperationError('Could not start an attempt for this survey');
+        throw new InvalidOperationError('couldNotStartAttempt');
     }
     return existingAttempt;
 }
@@ -97,17 +97,17 @@ export async function deleteExistingAttempt(attemptId: string, userId: string, e
     const results = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
 
     if (results.length === 0) {
-        throw new NotFoundError('Attempt not found');
+        throw new NotFoundError('attemptNotFound');
     }
 
     const existingAttempt = results[0];
 
     if (existingAttempt.completedAt) {
-        throw new InvalidOperationError('Cannot delete a completed attempt');
+        throw new InvalidOperationError('cannotDeleteCompletedAttempt');
     }
 
     if (existingAttempt.userId !== userId) {
-        throw new NotFoundError('Attempt not found');
+        throw new NotFoundError('attemptNotFound');
     }
 
     await executor.delete(attempts).where(eq(attempts.id, attemptId));
@@ -124,7 +124,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string,
         .limit(1);
 
     if (results.length === 0) {
-        throw new NotFoundError('Attempt not found');
+        throw new NotFoundError('attemptNotFound');
     }
 
     const { attempt: existingAttempt, surveyPublicId } = results[0];
@@ -134,7 +134,7 @@ export async function completeExistingAttempt(attemptId: string, userId: string,
     }
 
     if (existingAttempt.userId !== userId) {
-        throw new NotFoundError('Attempt not found');
+        throw new NotFoundError('attemptNotFound');
     }
 
     const updated = await executor.update(attempts)

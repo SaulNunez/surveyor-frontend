@@ -56,10 +56,10 @@ export async function saveResponse(
     executor: Executor = db
 ) {
     const questionResults = await executor.select().from(questions).where(eq(questions.id, questionId)).limit(1);
-    if (questionResults.length === 0) throw new NotFoundError('Question not found');
+    if (questionResults.length === 0) throw new NotFoundError('questionNotFound');
 
     const attemptResults = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
-    if (attemptResults.length === 0) throw new NotFoundError('Attempt not found');
+    if (attemptResults.length === 0) throw new NotFoundError('attemptNotFound');
 
     const columns = toResponseColumns(responsePayload);
     const values: ResponseInsert = { attemptId, questionId, ...columns };
@@ -77,17 +77,17 @@ export async function saveResponse(
 
 export async function getExistingResponseInQuestion(attemptId: string, questionId: string, executor: Executor = db) {
     const questionResults = await executor.select().from(questions).where(eq(questions.id, questionId)).limit(1);
-    if (questionResults.length === 0) throw new NotFoundError('Question not found');
+    if (questionResults.length === 0) throw new NotFoundError('questionNotFound');
 
     const attemptResults = await executor.select().from(attempts).where(eq(attempts.id, attemptId)).limit(1);
-    if (attemptResults.length === 0) throw new NotFoundError('Attempt not found');
+    if (attemptResults.length === 0) throw new NotFoundError('attemptNotFound');
 
     const results = await executor.select()
         .from(responses)
         .where(and(eq(responses.attemptId, attemptId), eq(responses.questionId, questionId)))
         .limit(1);
 
-    if (results.length === 0) throw new NotFoundError('Response not found');
+    if (results.length === 0) throw new NotFoundError('responseNotFound');
 
     return results[0];
 }
